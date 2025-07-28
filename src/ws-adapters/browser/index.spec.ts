@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createWsAdapter, wsConnectedEvent, wsDisconnectedEvent, wsErrorEvent } from '.'
 import { createContext } from '../../context'
-import { defineInvokeEventa } from '../../invoke-shared'
+import { defineEventa } from '../../eventa'
 
 describe.todo('ws-adapter', () => {
   let ws: WebSocket
@@ -29,19 +29,19 @@ describe.todo('ws-adapter', () => {
     expect(globalThis.WebSocket).toHaveBeenCalledWith('ws://localhost:3000')
 
     // Test sending message
-    const testEvent = defineInvokeEventa<string, string>('test')
-    ctx.emit(testEvent.sendEvent, 'hello')
+    const testEvent = defineEventa<string>('test')
+    ctx.emit(testEvent, 'hello')
 
     expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"payload":"hello"'))
 
     // Test receiving message
     const onMessage = vi.fn()
-    ctx.on(testEvent.receiveEvent, onMessage)
+    ctx.on(testEvent, onMessage)
 
     ws.onmessage?.({
       data: JSON.stringify({
         id: '123',
-        type: testEvent.receiveEvent,
+        type: testEvent,
         payload: 'world',
         timestamp: Date.now(),
       }),
@@ -58,9 +58,9 @@ describe.todo('ws-adapter', () => {
     const onError = vi.fn()
     const onDisconnect = vi.fn()
 
-    ctx.on(wsConnectedEvent.sendEvent, onConnect)
-    ctx.on(wsErrorEvent.sendEvent, onError)
-    ctx.on(wsDisconnectedEvent.sendEvent, onDisconnect)
+    ctx.on(wsConnectedEvent, onConnect)
+    ctx.on(wsErrorEvent, onError)
+    ctx.on(wsDisconnectedEvent, onDisconnect)
 
     ws.onopen?.({} as Event)
     expect(onConnect).toHaveBeenCalledWith({ url: 'ws://localhost:3000' })

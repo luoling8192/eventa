@@ -37,7 +37,7 @@ export function createH3WsAdapter(app: App, peers: Set<Peer> = new Set<Peer>()):
       async message(peer, message) {
         try {
           const { type, payload } = parseWebsocketPayload(message.json())
-          emit(type, payload)
+          emit(defineEventa(type), payload)
         }
         catch (error) {
           emit(wsErrorEvent, { error })

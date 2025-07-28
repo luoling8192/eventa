@@ -15,19 +15,19 @@ export function createWsAdapter(url: string): EventaAdapter {
 
     ws.onmessage = ({ data }) => {
       const { type, payload } = parseWebsocketPayload(data)
-      emit(type, payload)
+      emit(defineEventa(type), payload)
     }
 
     ws.onopen = () => {
-      emit(wsConnectedEvent.sendEvent, { url })
+      emit(wsConnectedEvent, { url })
     }
 
     ws.onerror = (error) => {
-      emit(wsErrorEvent.sendEvent, { error })
+      emit(wsErrorEvent, { error })
     }
 
     ws.onclose = () => {
-      emit(wsDisconnectedEvent.sendEvent, { url })
+      emit(wsDisconnectedEvent, { url })
     }
 
     return {
