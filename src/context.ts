@@ -1,5 +1,5 @@
 import type { EventaAdapter } from './adapters/websocket'
-import type { Eventa, EventaLike, EventaMatchExpression, EventTag } from './eventa'
+import type { Eventa, EventaMatchExpression, EventTag } from './eventa'
 
 import { EventaType } from './eventa'
 
@@ -62,7 +62,7 @@ export function createContext(props: CreateContextProps = {}) {
 
     emit,
 
-    on<P>(eventOrMatchExpression: EventaLike<P>, handler: (payload: Eventa<P>) => void) {
+    on<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>) => void) {
       if (eventOrMatchExpression.type === EventaType.Event) {
         const event = eventOrMatchExpression as Eventa<P>
         if (!listeners.has(event.id)) {
@@ -94,7 +94,7 @@ export function createContext(props: CreateContextProps = {}) {
       }
     },
 
-    once<P>(eventOrMatchExpression: EventaLike<P>, handler: (payload: Eventa<P>) => void) {
+    once<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>) => void) {
       if (eventOrMatchExpression.type === EventaType.Event) {
         const event = eventOrMatchExpression as Eventa<P>
         if (!onceListeners.has(event.id)) {
@@ -126,7 +126,7 @@ export function createContext(props: CreateContextProps = {}) {
       }
     },
 
-    off<P>(eventOrMatchExpression: EventaLike<P>) {
+    off<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>) {
       if (eventOrMatchExpression.type === EventaType.Event) {
         listeners.delete(eventOrMatchExpression.id)
         onceListeners.delete(eventOrMatchExpression.id)

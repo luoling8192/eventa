@@ -25,7 +25,7 @@ function createUntil<T>(): {
   return { promise, handler: resolve }
 }
 
-describe('h3-ws-adapter', { timeout: 10000000 }, async () => {
+describe('h3-ws-adapter', { timeout: 2000 }, async () => {
   it('should create a h3 ws adapter and handle events', async (testCtx) => {
     const port = randomBetween(40000, 50000)
     const { websocketHandlers, context: ctx } = createContext()
