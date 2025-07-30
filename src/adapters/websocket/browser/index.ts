@@ -50,8 +50,8 @@ export function createContext(wsConn: WebSocket) {
 
   wsConn.onmessage = (event) => {
     try {
-      const { type, payload } = parseWebsocketPayload(event.data)
-      ctx.emit(defineInboundEventa(type), payload)
+      const { type, payload } = parseWebsocketPayload<Eventa<any>>(event.data)
+      ctx.emit(defineInboundEventa(type), payload.body)
     }
     catch (error) {
       console.error('Failed to parse WebSocket message:', error)

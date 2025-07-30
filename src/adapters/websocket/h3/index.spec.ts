@@ -49,7 +49,16 @@ describe('h3 websocket adapter', { timeout: 2000 }, async () => {
     })
 
     // Native send
-    wsConn.send(JSON.stringify({ id: nanoid(), type: helloEvent.id, payload: { result: 'Hello' }, timestamp: Date.now() }))
+    wsConn.send(JSON.stringify({
+      id: nanoid(),
+      type: helloEvent.id,
+      payload: {
+        id: helloEvent.id,
+        type: helloEvent.type,
+        body: { result: 'Hello' },
+      } satisfies Eventa<{ result: string }>,
+      timestamp: Date.now(),
+    }))
     // Context passive send
     ctx.emit(helloEvent, { result: 'Hello' })
 

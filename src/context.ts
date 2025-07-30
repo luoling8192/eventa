@@ -22,33 +22,35 @@ export function createContext(props: CreateContextProps = {}) {
   const hooks = props.adapter?.(emit).hooks
 
   function emit<P>(event: Eventa<P>, payload: P) {
+    const emittingPayload = { ...event, body: payload }
+
     for (const listener of listeners.get(event.id) || []) {
-      listener({ ...event, body: payload })
+      listener(emittingPayload)
     }
 
     for (const onceListener of onceListeners.get(event.id) || []) {
-      onceListener({ ...event, body: payload })
+      onceListener(emittingPayload)
       onceListeners.get(event.id)?.delete(onceListener)
     }
 
     for (const matchExpression of matchExpressions.values()) {
       if (matchExpression.matcher) {
-        const match = matchExpression.matcher({ ...event, body: payload })
+        const match = matchExpression.matcher(emittingPayload)
         if (!match) {
           continue
         }
 
         for (const listener of matchExpressionListeners.get(matchExpression.id) || []) {
-          listener({ ...event, body: payload })
+          listener(emittingPayload)
         }
         for (const onceListener of matchExpressionOnceListeners.get(matchExpression.id) || []) {
-          onceListener({ ...event, body: payload })
+          onceListener(emittingPayload)
           matchExpressionOnceListeners.get(matchExpression.id)?.delete(onceListener)
         }
       }
     }
 
-    hooks?.onSent(event.id, { ...event, body: payload })
+    hooks?.onSent(event.id, emittingPayload)
   }
 
   return {

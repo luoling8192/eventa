@@ -22,7 +22,11 @@ describe('browser websocket adapter', () => {
         peer.send(JSON.stringify({
           id: nanoid(),
           type: receivedEvent.id,
-          payload: 'world',
+          payload: {
+            id: receivedEvent.id,
+            type: receivedEvent.type,
+            body: 'world',
+          } satisfies Eventa<string>,
           timestamp: Date.now(),
           websocketType: 'outbound',
         }))
@@ -74,9 +78,6 @@ describe('browser websocket adapter', () => {
     expect(onMessage.mock.calls[0][0]).toBeTypeOf('object')
 
     const receivedData = onMessage.mock.calls[0][0] as Eventa<string>
-    expect(receivedData.id).toBe(receivedEvent.id)
-    expect(receivedData.type).toBe(receivedEvent.type)
-    expect(receivedData.body).toBe('world')
     expect(receivedData).toEqual({ id: receivedEvent.id, type: receivedEvent.type, body: 'world', websocketType: 'inbound' })
   })
 

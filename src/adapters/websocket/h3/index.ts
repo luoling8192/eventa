@@ -81,8 +81,8 @@ export function createContext(): {
 
       async message(_, message) {
         try {
-          const { type, payload } = parseWebsocketPayload(message.text())
-          ctx.emit(defineInboundEventa(type), payload)
+          const { type, payload } = parseWebsocketPayload<Eventa<any>>(message.text())
+          ctx.emit(defineInboundEventa(type), payload.body)
         }
         catch (error) {
           console.error('Failed to parse WebSocket message:', error)
