@@ -1,7 +1,7 @@
-import type { EventContextEmitFn } from '../context'
-import type { EventTag } from '../eventa'
+import type { EventContextEmitFn } from '../../context'
+import type { EventTag } from '../../eventa'
 
-import { nanoid } from '../eventa'
+import { nanoid } from '../../eventa'
 
 export interface WebsocketPayload<T> {
   id: string
