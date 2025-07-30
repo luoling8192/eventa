@@ -46,6 +46,7 @@
     "test": "vitest --coverage",
     "test:run": "vitest run",
     "lint": "eslint --cache .",
+    "lint:fix": "eslint --cache --fix .",
     "typecheck": "tsc --noEmit",
     "up": "taze -w -r -I -f && pnpm prune && pnpm dedupe"
   },

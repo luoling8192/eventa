@@ -1,9 +1,9 @@
 import type { EventaAdapter } from '..'
-import type { EventContextEmitFn } from '../../context'
-import type { EventTag } from '../../eventa'
+import type { EventContextEmitFn } from '../../../context'
+import type { EventTag } from '../../../eventa'
 
 import { generateWebsocketPayload, parseWebsocketPayload } from '..'
-import { defineEventa } from '../../eventa'
+import { defineEventa } from '../../../eventa'
 
 export const wsConnectedEvent = defineEventa<{ url: string }>()
 export const wsDisconnectedEvent = defineEventa<{ url: string }>()

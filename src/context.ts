@@ -1,5 +1,5 @@
-import type { Eventa, EventaLike, EventaMatchExpression, EventTag } from './eventa'
 import type { EventaAdapter } from './adapters/websocket'
+import type { Eventa, EventaLike, EventaMatchExpression, EventTag } from './eventa'
 
 import { EventaType } from './eventa'
 

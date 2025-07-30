@@ -1,13 +1,13 @@
 import type { Hooks } from 'crossws'
 
-import type { Eventa } from '../../eventa'
+import type { Eventa } from '../../../eventa'
 
 import { plugin as ws } from 'crossws/server'
 import { defineWebSocketHandler, H3, serve } from 'h3'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createContext, wsConnectedEvent, wsDisconnectedEvent, wsErrorEvent } from '.'
-import { defineEventa, nanoid } from '../../eventa'
+import { defineEventa, nanoid } from '../../../eventa'
 
 function randomBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min

@@ -1,12 +1,12 @@
 import type { Mock } from 'vitest'
 
-import type { Eventa } from '../../eventa'
+import type { Eventa } from '../../../eventa'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createWsAdapter, wsConnectedEvent, wsDisconnectedEvent, wsErrorEvent } from '.'
-import { createContext } from '../../context'
-import { defineEventa } from '../../eventa'
+import { createContext } from '../../../context'
+import { defineEventa } from '../../../eventa'
 
 describe('ws-adapter', () => {
   let ws: WebSocket

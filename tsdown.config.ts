@@ -3,9 +3,9 @@ import { defineConfig } from 'tsdown'
 export default defineConfig({
   entry: {
     'index': 'src/index.ts',
-    'ws-adapters/index': 'src/ws-adapters/index.ts',
-    'ws-adapters/h3/index': 'src/ws-adapters/h3/index.ts',
-    'ws-adapters/browser/index': 'src/ws-adapters/browser/index.ts',
+    'adapters/websocket/index': 'src/adapters/websocket/index.ts',
+    'adapters/websocket/h3/index': 'src/adapters/websocket/h3/index.ts',
+    'adapters/websocket/browser/index': 'src/adapters/websocket/browser/index.ts',
   },
   dts: true,
   sourcemap: true,

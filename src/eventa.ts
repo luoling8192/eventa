@@ -108,6 +108,9 @@ export function matchBy<P = undefined, E extends Eventa<P> = Eventa<P>>(
     }
     else if ('types' in matchExpressionPossibleValues) {
       matcher = (event: Eventa<P>) => {
+        if (typeof event.type === 'undefined') {
+          return false
+        }
         if (inverted) {
           return !matchExpressionPossibleValues.types.includes(event.type)
         }

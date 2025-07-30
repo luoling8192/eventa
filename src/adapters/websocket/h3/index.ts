@@ -1,11 +1,11 @@
 import type { Hooks } from 'crossws'
 import type { defineWebSocketHandler } from 'h3'
 
-import type { Eventa } from '../../eventa'
+import type { Eventa } from '../../../eventa'
 
 import { generateWebsocketPayload, parseWebsocketPayload } from '..'
-import { createContext as createBaseContext } from '../../context'
-import { and, defineEventa, matchBy } from '../../eventa'
+import { createContext as createBaseContext } from '../../../context'
+import { and, defineEventa, matchBy } from '../../../eventa'
 
 export enum H3WsEventType {
   Connected = 'connected',

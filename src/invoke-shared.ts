@@ -46,23 +46,23 @@ export function defineInvokeEventa<Res, Req = undefined, ResErr = Error, ReqErr 
 
   const sendEvent = {
     ...defineEventa<InvokeEventType.SendEvent>(`${tag}-send`),
-    invokeType: InvokeEventType.SendEvent
+    invokeType: InvokeEventType.SendEvent,
   } as SendEvent<Res, Req, ResErr, ReqErr>
   const sendEventError = {
     ...defineEventa<InvokeEventType.SendEventError>(`${tag}-send-error`),
-    invokeType: InvokeEventType.SendEventError
+    invokeType: InvokeEventType.SendEventError,
   } as SendEventError<Res, Req, ResErr, ReqErr>
   const receiveEvent = {
     ...defineEventa<InvokeEventType.ReceiveEvent>(`${tag}-receive`),
-    invokeType: InvokeEventType.ReceiveEvent
+    invokeType: InvokeEventType.ReceiveEvent,
   } as ReceiveEvent<Res, Req, ResErr, ReqErr>
   const receiveEventError = {
     ...defineEventa<InvokeEventType.ReceiveEventError>(`${tag}-receive-error`),
-    invokeType: InvokeEventType.ReceiveEventError
+    invokeType: InvokeEventType.ReceiveEventError,
   } as ReceiveEventError<Res, Req, ResErr, ReqErr>
   const receiveEventStreamEnd = {
     ...defineEventa<InvokeEventType.ReceiveEventStreamEnd>(`${tag}-receive-stream-end`),
-    invokeType: InvokeEventType.ReceiveEventStreamEnd
+    invokeType: InvokeEventType.ReceiveEventStreamEnd,
   } as ReceiveEventStreamEnd<Res, Req, ResErr, ReqErr>
 
   return {
