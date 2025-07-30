@@ -2,10 +2,12 @@ import type { Hooks } from 'crossws'
 import type { defineWebSocketHandler } from 'h3'
 
 import type { Eventa } from '../../../eventa'
+import type { BaseWebSocketEventa } from '../shared'
 
 import { generateWebsocketPayload, parseWebsocketPayload } from '..'
 import { createContext as createBaseContext } from '../../../context'
 import { and, defineEventa, matchBy } from '../../../eventa'
+import { BaseWebSocketType, defineInboundEventa, defineOutboundEventa } from '../shared'
 
 export enum H3WsEventType {
   Connected = 'connected',
@@ -49,8 +51,12 @@ export function createContext(): {
   const ctx = createBaseContext()
   const peers = new Set<Peer>()
 
-  ctx.on(and(matchBy(isNotH3WsEventa), matchBy('*')), (event) => {
-    const data = JSON.stringify(generateWebsocketPayload(event.id, event))
+  ctx.on(and(
+    matchBy(isNotH3WsEventa),
+    matchBy((e: BaseWebSocketEventa<any>) => e.websocketType === BaseWebSocketType.Outbound || !e.websocketType),
+    matchBy('*'),
+  ), (event) => {
+    const data = JSON.stringify(generateWebsocketPayload(event.id, { ...defineOutboundEventa(event.type), ...event }))
     for (const peer of peers) {
       peer.send(data)
     }
@@ -76,7 +82,7 @@ export function createContext(): {
       async message(_, message) {
         try {
           const { type, payload } = parseWebsocketPayload(message.text())
-          ctx.emit(defineEventa(type), payload)
+          ctx.emit(defineInboundEventa(type), payload)
         }
         catch (error) {
           console.error('Failed to parse WebSocket message:', error)

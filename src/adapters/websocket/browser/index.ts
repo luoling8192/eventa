@@ -1,47 +1,77 @@
-import type { EventaAdapter } from '..'
-import type { EventContextEmitFn } from '../../../context'
-import type { EventTag } from '../../../eventa'
+import type { Eventa } from '../../../eventa'
+import type { BaseWebSocketEventa } from '../shared'
 
 import { generateWebsocketPayload, parseWebsocketPayload } from '..'
-import { defineEventa } from '../../../eventa'
+import { createContext as createBaseContext } from '../../../context'
+import { and, defineEventa, matchBy } from '../../../eventa'
+import { BaseWebSocketType, defineInboundEventa, defineOutboundEventa } from '../shared'
 
-export const wsConnectedEvent = defineEventa<{ url: string }>()
-export const wsDisconnectedEvent = defineEventa<{ url: string }>()
-export const wsErrorEvent = defineEventa<{ error: unknown }>()
+export enum WebSocketType {
+  Connected = 'connected',
+  Disconnected = 'disconnected',
+  Error = 'error',
+}
 
-export function createWsAdapter(url: string): EventaAdapter {
-  return (emit: EventContextEmitFn) => {
-    const ws = new WebSocket(url)
+export interface ConnectedEvent extends BaseWebSocketEventa<{ url: string }, WebSocketType> {
+  websocketType: WebSocketType.Connected
+}
 
-    ws.onmessage = ({ data }) => {
-      const { type, payload } = parseWebsocketPayload(data)
-      emit(defineEventa(type), payload)
+export interface DisconnectedEvent extends BaseWebSocketEventa<{ url: string }, WebSocketType> {
+  websocketType: WebSocketType.Disconnected
+}
+
+export interface ErrorEvent extends BaseWebSocketEventa<{ error: unknown }, WebSocketType> {
+  websocketType: WebSocketType.Error
+}
+
+export const wsConnectedEvent = { ...defineEventa<{ url: string }>(), websocketType: WebSocketType.Connected } as ConnectedEvent
+export const wsDisconnectedEvent = { ...defineEventa<{ url: string }>(), websocketType: WebSocketType.Disconnected } as DisconnectedEvent
+export const wsErrorEvent = { ...defineEventa<{ error: unknown }>(), websocketType: WebSocketType.Error } as ErrorEvent
+
+function isWebSocketEvent<P>(event: Eventa<P>): event is BaseWebSocketEventa<P, WebSocketType> {
+  return 'websocketType' in event && Object.values(WebSocketType).includes(event.websocketType as WebSocketType)
+}
+
+function isNotWebSocketEvent<P>(event: Eventa<P>): event is Eventa<P> {
+  return !isWebSocketEvent(event)
+}
+
+export function createContext(wsConn: WebSocket) {
+  const ctx = createBaseContext()
+
+  ctx.on(and(
+    matchBy(isNotWebSocketEvent),
+    matchBy((e: BaseWebSocketEventa<any>) => e.websocketType === BaseWebSocketType.Outbound || !e.websocketType),
+    matchBy('*'),
+  ), (event) => {
+    const data = JSON.stringify(generateWebsocketPayload(event.id, { ...defineOutboundEventa(event.type), ...event }))
+    wsConn.send(data)
+  })
+
+  wsConn.onmessage = (event) => {
+    try {
+      const { type, payload } = parseWebsocketPayload(event.data)
+      ctx.emit(defineInboundEventa(type), payload)
     }
-
-    ws.onopen = () => {
-      emit(wsConnectedEvent, { url })
+    catch (error) {
+      console.error('Failed to parse WebSocket message:', error)
+      ctx.emit(wsErrorEvent, { error })
     }
+  }
 
-    ws.onerror = (error) => {
-      emit(wsErrorEvent, { error })
-    }
+  wsConn.onopen = () => {
+    ctx.emit(wsConnectedEvent, { url: wsConn.url })
+  }
 
-    ws.onclose = () => {
-      emit(wsDisconnectedEvent, { url })
-    }
+  wsConn.onerror = (error) => {
+    ctx.emit(wsErrorEvent, { error })
+  }
 
-    return {
-      cleanup: () => ws.close(),
+  wsConn.onclose = () => {
+    ctx.emit(wsDisconnectedEvent, { url: wsConn.url })
+  }
 
-      hooks: {
-        onReceived: <Req, Res>(tag: EventTag<Req, Res>, payload: Req) => {
-          ws.send(JSON.stringify(generateWebsocketPayload(tag, payload)))
-        },
-
-        onSent: <Req, Res>(tag: EventTag<Req, Res>, payload: Req) => {
-          ws.send(JSON.stringify(generateWebsocketPayload(tag, payload)))
-        },
-      },
-    }
+  return {
+    context: ctx,
   }
 }

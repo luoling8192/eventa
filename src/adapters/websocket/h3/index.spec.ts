@@ -8,25 +8,10 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createContext, wsConnectedEvent, wsDisconnectedEvent, wsErrorEvent } from '.'
 import { defineEventa, nanoid } from '../../../eventa'
+import { createUntil, randomBetween } from '../../../utils'
 
-function randomBetween(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min
-}
-
-function createUntil<T>(): {
-  promise: Promise<T>
-  handler: (value: T) => void
-} {
-  let resolve!: (value: T) => void
-  const promise = new Promise<T>((res) => {
-    resolve = res
-  })
-
-  return { promise, handler: resolve }
-}
-
-describe('h3-ws-adapter', { timeout: 2000 }, async () => {
-  it('should create a h3 ws adapter and handle events', async (testCtx) => {
+describe('h3 websocket adapter', { timeout: 2000 }, async () => {
+  it('should create a h3 ws adapter and handle events with native', async (testCtx) => {
     const port = randomBetween(40000, 50000)
     const { websocketHandlers, context: ctx } = createContext()
     const app = new H3()
@@ -54,17 +39,71 @@ describe('h3-ws-adapter', { timeout: 2000 }, async () => {
     expect(wsConn.readyState).toBe(WebSocket.OPEN)
 
     const helloEvent = defineEventa<{ result: string }>('hello')
-    const untilHelloEventTriggered = createUntil<void>()
+
+    const untilHelloEventTriggered1 = createUntil<void>()
     const handleHello = vi.fn()
+
     ctx.on(helloEvent, (payload) => {
       handleHello(payload)
-      untilHelloEventTriggered.handler()
+      untilHelloEventTriggered1.handler()
     })
+
+    // Native send
     wsConn.send(JSON.stringify({ id: nanoid(), type: helloEvent.id, payload: { result: 'Hello' }, timestamp: Date.now() }))
+    // Context passive send
+    ctx.emit(helloEvent, { result: 'Hello' })
+
+    await untilHelloEventTriggered1.promise
     wsConn.close()
 
-    await untilHelloEventTriggered.promise
-    expect(handleHello).toHaveBeenCalledOnce()
+    expect(handleHello).toBeCalledTimes(1)
+    expect(handleHello.mock.calls[0][0]).toEqual({ id: helloEvent.id, type: helloEvent.type, body: { result: 'Hello' } })
+  })
+
+  it('should create a h3 ws adapter and handle events with context', async (testCtx) => {
+    const port = randomBetween(40000, 50000)
+    const { websocketHandlers, context: ctx } = createContext()
+    const app = new H3()
+    app.get('/ws', defineWebSocketHandler(websocketHandlers))
+
+    {
+      const server = serve(app, {
+        port,
+        plugins: [ws({
+          resolve: async (req) => {
+            const response = (await app.fetch(req)) as Response & { crossws: Partial<Hooks> }
+            return response.crossws
+          },
+        })],
+      })
+      testCtx.onTestFinished(() => {
+        server.close()
+      })
+    }
+
+    const opened = createUntil<void>()
+    const wsConn = new WebSocket(`ws://localhost:${port}/ws`)
+    wsConn.onopen = () => opened.handler()
+    await opened.promise
+    expect(wsConn.readyState).toBe(WebSocket.OPEN)
+
+    const helloEvent = defineEventa<{ result: string }>('hello')
+
+    const untilHelloEventTriggered1 = createUntil<void>()
+    const handleHello = vi.fn()
+
+    ctx.on(helloEvent, (payload) => {
+      handleHello(payload)
+      untilHelloEventTriggered1.handler()
+    })
+
+    // Context passive send
+    ctx.emit(helloEvent, { result: 'Hello' })
+
+    await untilHelloEventTriggered1.promise
+    wsConn.close()
+
+    expect(handleHello).toBeCalledTimes(1)
     expect(handleHello.mock.calls[0][0]).toEqual({ id: helloEvent.id, type: helloEvent.type, body: { result: 'Hello' } })
   })
 
