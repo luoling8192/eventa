@@ -20,17 +20,17 @@
       "type": "./dist/index.mts",
       "default": "./dist/index.mjs"
     },
-    "./ws-adapters/browser/index": {
-      "type": "./dist/ws-adapters/browser/index.mts",
-      "default": "./dist/ws-adapters/browser/index.mjs"
+    "./adapters/websocket/browser": {
+      "type": "./dist/adapters/websocket/browser/index.mts",
+      "default": "./dist/adapters/websocket/browser/index.mjs"
     },
-    "./ws-adapters/h3/index": {
-      "type": "./dist/ws-adapters/h3/index.mts",
-      "default": "./dist/ws-adapters/h3/index.mjs"
+    "./adapters/websocket/h3": {
+      "type": "./dist/adapters/websocket/h3/index.mts",
+      "default": "./dist/adapters/websocket/h3/index.mjs"
     },
-    "./ws-adapters/index": {
-      "type": "./dist/ws-adapters/index.mts",
-      "default": "./dist/ws-adapters/index.mjs"
+    "./adapters/websocket": {
+      "type": "./dist/adapters/websocket/index.mts",
+      "default": "./dist/adapters/websocket/index.mjs"
     }
   },
   "main": "./dist/index.mjs",
@@ -50,7 +50,7 @@
     "up": "taze -w -r -I -f && pnpm prune && pnpm dedupe"
   },
   "peerDependencies": {
-    "h3": ">=1"
+    "h3": "2.0.0-beta.1"
   },
   "peerDependenciesMeta": {
     "h3": {
@@ -58,12 +58,14 @@
     }
   },
   "dependencies": {
-    "nanoid": "^5.1.5"
+    "nanoid": "^5.1.5",
+    "picomatch": "^4.0.3"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^5.0.0",
     "@types/node": "^24.1.0",
     "bumpp": "^10.2.0",
+    "crossws": "^0.4.1",
     "eslint": "^9.32.0",
     "taze": "^19.1.0",
     "tsdown": "^0.13.0",
