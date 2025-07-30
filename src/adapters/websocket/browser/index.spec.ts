@@ -1,86 +1,134 @@
-import type { Mock } from 'vitest'
+import type { Hooks } from 'crossws'
 
 import type { Eventa } from '../../../eventa'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { plugin as ws } from 'crossws/server'
+import { defineWebSocketHandler, H3, serve } from 'h3'
+import { describe, expect, it, vi } from 'vitest'
 
-import { createWsAdapter, wsConnectedEvent, wsDisconnectedEvent, wsErrorEvent } from '.'
-import { createContext } from '../../../context'
-import { defineEventa } from '../../../eventa'
+import { createContext, wsConnectedEvent, wsDisconnectedEvent, wsErrorEvent } from '.'
+import { defineEventa, nanoid } from '../../../eventa'
+import { createUntil, randomBetween } from '../../../utils'
 
-describe('ws-adapter', () => {
-  let ws: WebSocket
+describe('browser websocket adapter', () => {
+  it('should create a ws adapter and handle events from peer send', async (testCtx) => {
+    const sendEvent = defineEventa<string>('send')
+    const receivedEvent = defineEventa<string>('received')
 
-  beforeEach(() => {
-    // Mock WebSocket
-    ws = {
-      send: vi.fn(),
-      close: vi.fn(),
-      onmessage: null,
-      onopen: null,
-      onerror: null,
-      onclose: null,
-    } as unknown as WebSocket
+    const port = randomBetween(40000, 50000)
+    const app = new H3()
+    app.get('/ws', defineWebSocketHandler({
+      message: (peer) => {
+        peer.send(JSON.stringify({
+          id: nanoid(),
+          type: receivedEvent.id,
+          payload: {
+            id: receivedEvent.id,
+            type: receivedEvent.type,
+            body: 'world',
+          } satisfies Eventa<string>,
+          timestamp: Date.now(),
+          websocketType: 'outbound',
+        }))
+      },
+    }))
 
-    (globalThis as any).WebSocket = vi.fn(() => ws)
-  })
+    {
+      const server = serve(app, {
+        port,
+        plugins: [ws({
+          resolve: async (req) => {
+            const response = (await app.fetch(req)) as Response & { crossws: Partial<Hooks> }
+            return response.crossws
+          },
+        })],
+      })
 
-  it('should create a ws adapter and handle events', () => {
-    const wsAdapter = createWsAdapter('ws://localhost:3000')
-    const ctx = createContext({ adapter: wsAdapter })
+      testCtx.onTestFinished(() => {
+        server.close()
+      })
+    }
 
-    expect(ctx).toBeDefined()
-    expect(globalThis.WebSocket).toHaveBeenCalledWith('ws://localhost:3000')
+    const wsConn = new WebSocket(`ws://localhost:${port}/ws`)
+    const opened = createUntil<void>({
+      async intervalHandler() {
+        if (wsConn.readyState === WebSocket.OPEN) {
+          return true
+        }
 
-    // Test sending message
-    const testEvent = defineEventa<string>('test')
-    ctx.emit(testEvent, 'hello')
+        return false
+      },
+    })
+    wsConn.onopen = () => {
+      opened.handler()
+    }
+    const { context: ctx } = createContext(wsConn)
+    await opened.promise
 
-    const send = ws.send as Mock
-
-    expect(send).toHaveBeenCalledOnce()
-    expect(send.mock.calls[0][0]).toBeTypeOf('string')
-
-    const sentData = JSON.parse(send.mock.calls[0][0])
-    expect(sentData.id).toBeTypeOf('string')
-
-    // Test receiving message
     const onMessage = vi.fn()
-    ctx.on(testEvent, onMessage)
+    const untilOnMessage = createUntil<void>()
+    ctx.on(receivedEvent, (payload) => {
+      onMessage(payload)
+      untilOnMessage.handler()
+    })
+    ctx.emit(sendEvent, 'hello')
 
-    ctx.emit(testEvent, 'world')
-
+    await untilOnMessage.promise
     expect(onMessage).toHaveBeenCalledOnce()
     expect(onMessage.mock.calls[0][0]).toBeTypeOf('object')
 
     const receivedData = onMessage.mock.calls[0][0] as Eventa<string>
-    expect(receivedData.id).toBe(testEvent.id)
-    expect(receivedData.type).toBe(testEvent.type)
-    expect(receivedData.body).toBe('world')
+    expect(receivedData).toEqual({ id: receivedEvent.id, type: receivedEvent.type, body: 'world', websocketType: 'inbound' })
   })
 
-  it('should handle connection lifecycle events', () => {
-    const wsAdapter = createWsAdapter('ws://localhost:3000')
-    const ctx = createContext({ adapter: wsAdapter })
+  it('should handle connection lifecycle events', async (testCtx) => {
+    const port = randomBetween(40000, 50000)
+    const app = new H3()
+    app.get('/ws', defineWebSocketHandler({}))
+
+    {
+      const server = serve(app, {
+        port,
+        plugins: [ws({
+          resolve: async (req) => {
+            const response = (await app.fetch(req)) as Response & { crossws: Partial<Hooks> }
+            return response.crossws
+          },
+        })],
+      })
+      testCtx.onTestFinished(() => {
+        server.close()
+      })
+    }
 
     const onConnect = vi.fn()
     const onError = vi.fn()
     const onDisconnect = vi.fn()
 
+    const wsConn = new WebSocket(`ws://localhost:${port}/ws`)
+    const opened = createUntil<void>({
+      async intervalHandler() {
+        if (wsConn.readyState === WebSocket.OPEN) {
+          return true
+        }
+
+        return false
+      },
+    })
+    wsConn.onopen = () => {
+      opened.handler()
+    }
+    const { context: ctx } = createContext(wsConn)
+    await opened.promise
+
+    const untilDisconnected = createUntil<void>()
+
     ctx.on(wsConnectedEvent, onConnect)
     ctx.on(wsErrorEvent, onError)
-    ctx.on(wsDisconnectedEvent, onDisconnect)
-
-    // Simulate connection events
-    ctx.emit(wsConnectedEvent, undefined)
-
-    expect(onConnect).toHaveBeenCalledOnce()
-    expect(onConnect.mock.calls[0][0]).toBeTypeOf('object')
-
-    const connectData = onConnect.mock.calls[0][0] as Eventa<{ id: string }>
-
-    expect(connectData.id).toBeTypeOf('string')
-    expect(connectData.body).toBeUndefined()
+    ctx.on(wsDisconnectedEvent, (payload) => {
+      onDisconnect(payload)
+      untilDisconnected.handler()
+    })
 
     const error = new Error('test error')
     ctx.emit(wsErrorEvent, { error })
@@ -93,7 +141,8 @@ describe('ws-adapter', () => {
     expect(errorData.id).toBe(wsErrorEvent.id)
     expect(errorData.body).toMatchObject({ error })
 
-    ctx.emit(wsDisconnectedEvent, undefined)
+    wsConn.close()
+    await untilDisconnected.promise
 
     expect(onDisconnect).toHaveBeenCalledOnce()
     expect(onDisconnect.mock.calls[0][0]).toBeTypeOf('object')
@@ -101,6 +150,7 @@ describe('ws-adapter', () => {
     const disconnectData = onDisconnect.mock.calls[0][0] as Eventa<{ id: string }>
 
     expect(disconnectData.id).toBe(wsDisconnectedEvent.id)
-    expect(disconnectData.body).toBeUndefined()
+    expect(disconnectData.body).toBeTypeOf('object')
+    expect(disconnectData.body?.id).not.toBe('')
   })
 })

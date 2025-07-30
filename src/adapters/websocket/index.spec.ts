@@ -1,40 +1,65 @@
-// import { createApp } from 'h3'
-import { describe } from 'vitest'
+import type { Hooks } from 'crossws'
 
-// import { createContext } from '../context'
-// import { defineEventa } from '../eventa'
-// import { createWsAdapter } from './browser'
+import { plugin as ws } from 'crossws/server'
+import { defineWebSocketHandler, H3, serve } from 'h3'
+import { describe, expect, it } from 'vitest'
 
-describe.todo('ws-adapter', () => {
-  // it('should works', () => {
-  //   // Create server
-  //   const h3Adapter = createH3WsAdapter(createApp(), new Set())
-  //   const serverContext = createContext({ adapter: h3Adapter })
+import { defineInvoke, defineInvokeHandler } from '../../invoke'
+import { defineInvokeEventa } from '../../invoke-shared'
+import { createUntil, randomBetween } from '../../utils'
+import { createContext as createClientContext } from './browser'
+import { createContext as createServerContext } from './h3'
 
-  //   // Create client
-  //   const wsAdapter = createWsAdapter('localhost:3000/ws')
-  //   const clientContext = createContext({ adapter: wsAdapter })
+describe('adapters', async () => {
+  it('it should work for h3 with browser', async (testCtx) => {
+    const port = randomBetween(3000, 4000)
 
-  //   // Create events
-  //   const clientEvent = defineEventa<{ name: string, age: number }>('rpc') // trigger -> server
-  //   const serverEvent = defineEventa<{ id: string }>('rpc_response') // trigger_response -> client
+    const helloWorldEvents = defineInvokeEventa<{ output: string }, { input: string }>()
 
-  //   const data = {
-  //     name: 'alice',
-  //     age: 12,
-  //   }
+    {
+      const { websocketHandlers, context: serverContext } = createServerContext()
+      const app = new H3()
+      app.get('/ws', defineWebSocketHandler(websocketHandlers))
 
-  //   serverContext.on(clientEvent, ({ name, age }) => {
-  //     expect(name).toBe(data.name)
-  //     expect(age).toBe(data.age)
+      {
+        const server = serve(app, {
+          port,
+          plugins: [ws({
+            resolve: async (req) => {
+              const response = (await app.fetch(req)) as Response & { crossws: Partial<Hooks> }
+              return response.crossws
+            },
+          })],
+        })
+        testCtx.onTestFinished(() => {
+          server.close()
+        })
+      }
 
-  //     serverContext.emit(serverEvent, { id: name + age })
-  //   })
+      defineInvokeHandler(serverContext, helloWorldEvents, () => {
+        return { output: 'Hello, World!' }
+      })
+    }
 
-  //   clientContext.on(serverEvent, ({ id }) => {
-  //     expect(id).toBe(data.name + data.age)
-  //   })
+    {
+      const wsConn = new WebSocket(`ws://localhost:${port}/ws`)
+      const opened = createUntil<void>({
+        async intervalHandler() {
+          if (wsConn.readyState === WebSocket.OPEN) {
+            return true
+          }
 
-  //   clientContext.emit(clientEvent, { name: data.name, age: data.age })
-  // })
+          return false
+        },
+      })
+      wsConn.onopen = () => opened.handler()
+      const { context: ctx } = createClientContext(wsConn)
+      await opened.promise
+
+      const helloWorld = defineInvoke(ctx, helloWorldEvents)
+
+      const result = await helloWorld({ input: 'Hello' })
+      expect(result).toEqual({ output: 'Hello, World!' })
+    }
+  })
 })

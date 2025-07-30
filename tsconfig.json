@@ -16,8 +16,6 @@
   },
   "exclude": [
     "**/dist/**",
-    "node_modules",
-    // TODO: remove this when finished
-    "./src/ws-adapters/**/*.ts"
+    "node_modules"
   ]
 }

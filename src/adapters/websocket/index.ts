@@ -40,3 +40,6 @@ interface EventaAdapterProps {
 }
 
 export type EventaAdapter = (emit: EventContextEmitFn) => EventaAdapterProps
+
+export type * from './shared'
+export { defineInboundEventa, defineOutboundEventa } from './shared'
