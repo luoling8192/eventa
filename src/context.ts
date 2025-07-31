@@ -1,4 +1,4 @@
-import type { EventaAdapter } from './adapters/websocket'
+import type { EventaAdapter } from './context-hooks'
 import type { Eventa, EventaMatchExpression, EventTag } from './eventa'
 
 import { EventaType } from './eventa'

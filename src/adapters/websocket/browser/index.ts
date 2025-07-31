@@ -1,9 +1,9 @@
 import type { Eventa } from '../../../eventa'
 import type { BaseWebSocketEventa } from '../shared'
 
-import { generateWebsocketPayload, parseWebsocketPayload } from '..'
 import { createContext as createBaseContext } from '../../../context'
 import { and, defineEventa, matchBy } from '../../../eventa'
+import { generateWebsocketPayload, parseWebsocketPayload } from '../internal'
 import { BaseWebSocketType, defineInboundEventa, defineOutboundEventa } from '../shared'
 
 export enum WebSocketType {
