@@ -1,4 +1,4 @@
-import type { Eventa } from '../../eventa'
+import type { Eventa, EventTag } from '../../eventa'
 
 import { defineEventa } from '../../eventa'
 
@@ -31,4 +31,11 @@ export function defineOutboundEventa<T>(id?: string): OutboundEventa<T> {
     ...defineEventa<T>(id),
     websocketType: BaseWebSocketType.Outbound,
   } as OutboundEventa<T>
+}
+
+export interface WebsocketPayload<T> {
+  id: string
+  type: EventTag<any, any>
+  payload: T
+  timestamp: number
 }

@@ -20,6 +20,14 @@
       "type": "./dist/index.mts",
       "default": "./dist/index.mjs"
     },
+    "./adapters/webworkers/worker": {
+      "type": "./dist/adapters/webworkers/worker/index.mts",
+      "default": "./dist/adapters/webworkers/worker/index.mjs"
+    },
+    "./adapters/webworkers": {
+      "type": "./dist/adapters/webworkers/index.mts",
+      "default": "./dist/adapters/webworkers/index.mjs"
+    },
     "./adapters/websocket/browser": {
       "type": "./dist/adapters/websocket/browser/index.mts",
       "default": "./dist/adapters/websocket/browser/index.mjs"
@@ -51,10 +59,18 @@
     "up": "taze -w -r -I -f && pnpm prune && pnpm dedupe"
   },
   "peerDependencies": {
-    "h3": "2.0.0-beta.1"
+    "electron": ">=30",
+    "h3": "2.0.0-beta.1",
+    "web-worker": "^1.5.0"
   },
   "peerDependenciesMeta": {
+    "electron": {
+      "optional": true
+    },
     "h3": {
+      "optional": true
+    },
+    "web-worker": {
       "optional": true
     }
   },
@@ -65,6 +81,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^5.0.0",
     "@types/node": "^24.1.0",
+    "@vitest/web-worker": "^3.2.4",
     "bumpp": "^10.2.0",
     "crossws": "^0.4.1",
     "eslint": "^9.32.0",
@@ -72,6 +89,7 @@
     "tsdown": "^0.13.0",
     "typescript": "^5.8.3",
     "unplugin-unused": "^0.5.1",
+    "vite": "^7.0.6",
     "vitest": "^3.2.4"
   }
 }
