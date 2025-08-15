@@ -1,0 +1,82 @@
+import type { Eventa } from '../../eventa'
+import type { BaseCustomEventEventa } from './shared'
+
+import { createContext as createBaseContext } from '../../context'
+import { and, EventaType, matchBy } from '../../eventa'
+import { generateCustomEventDetail, parseCustomEventDetail } from './internal'
+import { BaseCustomEventType, defineInboundEventa, defineOutboundEventa, isNotEventTargetEvent, workerErrorEvent } from './shared'
+
+function withRemoval(eventTarget: EventTarget, type: string, listener: EventListenerOrEventListenerObject | null) {
+  eventTarget.addEventListener(type, listener)
+
+  return {
+    remove: () => {
+      eventTarget.removeEventListener(type, listener)
+    },
+  }
+}
+
+export function createContext(eventTarget: EventTarget, options?: {
+  messageEventName?: string | false
+  errorEventName?: string | false
+  extraListeners?: Record<string, (event: Event) => void | Promise<void>>
+}) {
+  const ctx = createBaseContext()
+
+  const {
+    messageEventName = 'message',
+    errorEventName = 'error',
+    extraListeners = {},
+  } = options || {}
+
+  const cleanupRemoval: Array<{ remove: () => void }> = []
+
+  ctx.on(and(
+    matchBy(isNotEventTargetEvent),
+    matchBy((e: BaseCustomEventEventa<any>) => e.customEventDetailType === BaseCustomEventType.Outbound || !e.customEventDetailType),
+    matchBy('*'),
+  ), (event) => {
+    const detail = generateCustomEventDetail(event.id, { ...defineOutboundEventa(event.type), ...event })
+
+    const customEvent = new CustomEvent(messageEventName || EventaType.Event, {
+      detail,
+      bubbles: true,
+      cancelable: true,
+    })
+
+    eventTarget.dispatchEvent(customEvent)
+  })
+
+  if (messageEventName) {
+    cleanupRemoval.push(withRemoval(eventTarget, messageEventName, (event) => {
+      try {
+        const { type, payload } = parseCustomEventDetail<Eventa<any>>((event as CustomEvent).detail)
+        ctx.emit(defineInboundEventa(type), payload.body)
+      }
+      catch (error) {
+        console.error('Failed to parse WebSocket message:', error)
+        ctx.emit(workerErrorEvent, { error })
+      }
+    }))
+  }
+
+  if (errorEventName) {
+    cleanupRemoval.push(withRemoval(eventTarget, errorEventName, (error) => {
+      ctx.emit(workerErrorEvent, { error })
+    }))
+  }
+
+  for (const [eventName, listener] of Object.entries(extraListeners)) {
+    cleanupRemoval.push(withRemoval(eventTarget, eventName, listener))
+  }
+
+  return {
+    context: ctx,
+    dispose: () => {
+      cleanupRemoval.forEach(removal => removal.remove())
+    },
+  }
+}
+
+export type * from './shared'
+export { defineInboundEventa, defineOutboundEventa } from './shared'
