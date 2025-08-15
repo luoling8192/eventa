@@ -1,47 +1,16 @@
 import type { Hooks } from 'crossws'
 import type { defineWebSocketHandler } from 'h3'
 
-import type { Eventa } from '../../../eventa'
-import type { BaseWebSocketEventa } from '../shared'
+import type { Eventa, DirectionalEventa } from '../../../eventa'
 
 import { createContext as createBaseContext } from '../../../context'
-import { and, defineEventa, matchBy } from '../../../eventa'
+import { and, defineEventa, matchBy, defineInboundEventa, defineOutboundEventa, EventaFlowDirection } from '../../../eventa'
 import { generateWebsocketPayload, parseWebsocketPayload } from '../internal'
-import { BaseWebSocketType, defineInboundEventa, defineOutboundEventa } from '../shared'
 
-export enum H3WsEventType {
-  Connected = 'connected',
-  Disconnected = 'disconnected',
-  Error = 'error',
-}
+export const wsConnectedEvent = defineEventa<{ id: string }>()
+export const wsDisconnectedEvent = defineEventa<{ id: string }>()
+export const wsErrorEvent = defineEventa<{ error: unknown }>()
 
-export interface H3WsEvent<T> extends Eventa<T> {
-  h3wsType: H3WsEventType
-}
-
-export interface ConnectedEvent extends H3WsEvent<{ id: string }> {
-  h3wsType: H3WsEventType.Connected
-}
-
-export interface DisconnectedEvent extends H3WsEvent<{ id: string }> {
-  h3wsType: H3WsEventType.Disconnected
-}
-
-export interface ErrorEvent extends H3WsEvent<{ error: unknown }> {
-  h3wsType: H3WsEventType.Error
-}
-
-export const wsConnectedEvent = { ...defineEventa<{ id: string }>(), h3wsType: H3WsEventType.Connected } as ConnectedEvent
-export const wsDisconnectedEvent = { ...defineEventa<{ id: string }>(), h3wsType: H3WsEventType.Disconnected } as DisconnectedEvent
-export const wsErrorEvent = { ...defineEventa<{ error: unknown }>(), h3wsType: H3WsEventType.Error } as ErrorEvent
-
-function isH3WsEventa<P>(event: Eventa<P>): event is H3WsEvent<P> {
-  return 'h3wsType' in event && Object.values(H3WsEventType).includes(event.h3wsType as H3WsEventType)
-}
-
-function isNotH3WsEventa<P>(event: Eventa<P>): event is Eventa<P> {
-  return !isH3WsEventa(event)
-}
 export type Peer = Parameters<NonNullable<Hooks['message']>>[0]
 
 export function createContext(): {
@@ -52,8 +21,7 @@ export function createContext(): {
   const peers = new Set<Peer>()
 
   ctx.on(and(
-    matchBy(isNotH3WsEventa),
-    matchBy((e: BaseWebSocketEventa<any>) => e.websocketType === BaseWebSocketType.Outbound || !e.websocketType),
+    matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
     matchBy('*'),
   ), (event) => {
     const data = JSON.stringify(generateWebsocketPayload(event.id, { ...defineOutboundEventa(event.type), ...event }))

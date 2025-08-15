@@ -78,7 +78,7 @@ describe('browser websocket adapter', () => {
     expect(onMessage.mock.calls[0][0]).toBeTypeOf('object')
 
     const receivedData = onMessage.mock.calls[0][0] as Eventa<string>
-    expect(receivedData).toEqual({ id: receivedEvent.id, type: receivedEvent.type, body: 'world', websocketType: 'inbound' })
+    expect(receivedData).toEqual({ id: receivedEvent.id, type: receivedEvent.type, body: 'world', _flowDirection: 'inbound' })
   })
 
   it('should handle connection lifecycle events', async (testCtx) => {

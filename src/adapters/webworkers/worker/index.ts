@@ -1,24 +1,28 @@
 /* eslint-disable no-restricted-globals */
-import type { Eventa } from '../../../eventa'
-import type { BaseWorkerEventa } from '../shared'
+import type { Eventa, DirectionalEventa } from '../../../eventa'
 
 import { createContext as createBaseContext } from '../../../context'
-import { and, matchBy } from '../../../eventa'
+import { and, matchBy, defineInboundEventa, EventaFlowDirection, defineOutboundEventa } from '../../../eventa'
 import { generateWorkerPayload, parseWorkerPayload } from '../internal'
-import { BaseWorkerType, defineInboundEventa, defineOutboundEventa, isNotWorkerEvent, workerErrorEvent } from '../shared'
+import { workerErrorEvent } from '../shared'
 
-export function createContext(): {
+export function createContext(options?: {
+  messagePort?: Omit<MessagePort, 'close' | 'start'>
+}): {
   context: ReturnType<typeof createBaseContext>
 } {
+  const {
+    messagePort = self
+  } = options || {}
+
   const ctx = createBaseContext()
 
   ctx.on(and(
-    matchBy(isNotWorkerEvent),
-    matchBy((e: BaseWorkerEventa<any>) => e.workerType === BaseWorkerType.Outbound || !e.workerType),
+    matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
     matchBy('*'),
   ), (event) => {
     const data = generateWorkerPayload(event.id, { ...defineOutboundEventa(event.type), ...event })
-    self.postMessage(data)
+    messagePort.postMessage(data)
   })
 
   self.onerror = (error) => {
