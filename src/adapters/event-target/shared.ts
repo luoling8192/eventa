@@ -8,4 +8,4 @@ export interface CustomEventDetail<T> {
   payload: T
 }
 
-export const workerErrorEvent = { ...defineEventa<{ error: unknown }>()}
+export const workerErrorEvent = { ...defineEventa<{ error: unknown }>() }

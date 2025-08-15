@@ -1,10 +1,10 @@
 import type { Hooks } from 'crossws'
 import type { defineWebSocketHandler } from 'h3'
 
-import type { Eventa, DirectionalEventa } from '../../../eventa'
+import type { DirectionalEventa, Eventa } from '../../../eventa'
 
 import { createContext as createBaseContext } from '../../../context'
-import { and, defineEventa, matchBy, defineInboundEventa, defineOutboundEventa, EventaFlowDirection } from '../../../eventa'
+import { and, defineEventa, defineInboundEventa, defineOutboundEventa, EventaFlowDirection, matchBy } from '../../../eventa'
 import { generateWebsocketPayload, parseWebsocketPayload } from '../internal'
 
 export const wsConnectedEvent = defineEventa<{ id: string }>()

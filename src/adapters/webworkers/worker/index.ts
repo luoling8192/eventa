@@ -1,8 +1,8 @@
 /* eslint-disable no-restricted-globals */
-import type { Eventa, DirectionalEventa } from '../../../eventa'
+import type { DirectionalEventa, Eventa } from '../../../eventa'
 
 import { createContext as createBaseContext } from '../../../context'
-import { and, matchBy, defineInboundEventa, EventaFlowDirection, defineOutboundEventa } from '../../../eventa'
+import { and, defineInboundEventa, defineOutboundEventa, EventaFlowDirection, matchBy } from '../../../eventa'
 import { generateWorkerPayload, parseWorkerPayload } from '../internal'
 import { workerErrorEvent } from '../shared'
 
@@ -12,7 +12,7 @@ export function createContext(options?: {
   context: ReturnType<typeof createBaseContext>
 } {
   const {
-    messagePort = self
+    messagePort = self,
   } = options || {}
 
   const ctx = createBaseContext()

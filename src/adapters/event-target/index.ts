@@ -1,7 +1,7 @@
-import type { Eventa, DirectionalEventa } from '../../eventa'
+import type { DirectionalEventa, Eventa } from '../../eventa'
 
 import { createContext as createBaseContext } from '../../context'
-import { and, EventaType, matchBy, defineInboundEventa, defineOutboundEventa, EventaFlowDirection } from '../../eventa'
+import { and, defineInboundEventa, defineOutboundEventa, EventaFlowDirection, EventaType, matchBy } from '../../eventa'
 import { generateCustomEventDetail, parseCustomEventDetail } from './internal'
 import { workerErrorEvent } from './shared'
 
