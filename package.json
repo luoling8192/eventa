@@ -20,6 +20,10 @@
       "type": "./dist/index.mts",
       "default": "./dist/index.mjs"
     },
+    "./adapters/event-emitter": {
+      "type": "./dist/adapters/event-emitter/index.mts",
+      "default": "./dist/adapters/event-emitter/index.mjs"
+    },
     "./adapters/event-target": {
       "type": "./dist/adapters/event-target/index.mts",
       "default": "./dist/adapters/event-target/index.mjs"
