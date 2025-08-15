@@ -5,8 +5,8 @@ import type { Eventa } from '../../eventa'
 
 import { describe, expect, it } from 'vitest'
 
-import { createContext, defineInboundEventa } from '.'
-import { defineEventa } from '../../eventa'
+import { createContext } from '.'
+import { defineEventa, defineInboundEventa } from '../../eventa'
 import { defineInvoke, defineInvokeHandler } from '../../invoke'
 import { defineInvokeEventa } from '../../invoke-shared'
 import { createUntilTriggeredOnce } from '../../utils'

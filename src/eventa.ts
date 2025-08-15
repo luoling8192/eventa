@@ -15,6 +15,37 @@ export enum EventaType {
   MatchExpression = 'matchExpression',
 }
 
+export enum EventaFlowDirection {
+  Inbound = 'inbound',
+  Outbound = 'outbound',
+}
+
+export interface DirectionalEventa<P, T = undefined> extends Eventa<P> {
+  _flowDirection: EventaFlowDirection | T
+}
+
+export interface InboundEventa<T> extends DirectionalEventa<T> {
+  _flowDirection: EventaFlowDirection.Inbound
+}
+
+export interface OutboundEventa<T> extends DirectionalEventa<T> {
+  _flowDirection: EventaFlowDirection.Outbound
+}
+
+export function defineInboundEventa<T>(id?: string): InboundEventa<T> {
+  return {
+    ...defineEventa<T>(id),
+    _flowDirection: EventaFlowDirection.Inbound,
+  } as InboundEventa<T>
+}
+
+export function defineOutboundEventa<T>(id?: string): OutboundEventa<T> {
+  return {
+    ...defineEventa<T>(id),
+    _flowDirection: EventaFlowDirection.Outbound,
+  } as OutboundEventa<T>
+}
+
 // type ServerInvokeHandlerEvent<Req, Res> = symbol & InvokeEventConstraint<Req, Res>
 // type ClientInvoke<Req> = symbol & InvokeEventConstraint<Req, null>
 
