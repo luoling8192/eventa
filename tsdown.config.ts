@@ -3,6 +3,7 @@ import { defineConfig } from 'tsdown'
 export default defineConfig({
   entry: {
     'index': 'src/index.ts',
+    'adapters/event-target/index': 'src/adapters/event-target/index.ts',
     'adapters/webworkers/index': 'src/adapters/webworkers/index.ts',
     'adapters/webworkers/worker/index': 'src/adapters/webworkers/worker/index.ts',
     'adapters/websocket/index': 'src/adapters/websocket/index.ts',

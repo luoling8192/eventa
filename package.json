@@ -20,6 +20,10 @@
       "type": "./dist/index.mts",
       "default": "./dist/index.mjs"
     },
+    "./adapters/event-target": {
+      "type": "./dist/adapters/event-target/index.mts",
+      "default": "./dist/adapters/event-target/index.mjs"
+    },
     "./adapters/webworkers/worker": {
       "type": "./dist/adapters/webworkers/worker/index.mts",
       "default": "./dist/adapters/webworkers/worker/index.mjs"
