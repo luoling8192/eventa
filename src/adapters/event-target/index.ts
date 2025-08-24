@@ -1,10 +1,9 @@
-import type { Eventa } from '../../eventa'
-import type { BaseCustomEventEventa } from './shared'
+import type { DirectionalEventa, Eventa } from '../../eventa'
 
 import { createContext as createBaseContext } from '../../context'
-import { and, EventaType, matchBy } from '../../eventa'
+import { and, defineInboundEventa, defineOutboundEventa, EventaFlowDirection, EventaType, matchBy } from '../../eventa'
 import { generateCustomEventDetail, parseCustomEventDetail } from './internal'
-import { BaseCustomEventType, defineInboundEventa, defineOutboundEventa, isNotEventTargetEvent, workerErrorEvent } from './shared'
+import { workerErrorEvent } from './shared'
 
 function withRemoval(eventTarget: EventTarget, type: string, listener: EventListenerOrEventListenerObject | null) {
   eventTarget.addEventListener(type, listener)
@@ -32,8 +31,7 @@ export function createContext(eventTarget: EventTarget, options?: {
   const cleanupRemoval: Array<{ remove: () => void }> = []
 
   ctx.on(and(
-    matchBy(isNotEventTargetEvent),
-    matchBy((e: BaseCustomEventEventa<any>) => e.customEventDetailType === BaseCustomEventType.Outbound || !e.customEventDetailType),
+    matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
     matchBy('*'),
   ), (event) => {
     const detail = generateCustomEventDetail(event.id, { ...defineOutboundEventa(event.type), ...event })
@@ -79,4 +77,3 @@ export function createContext(eventTarget: EventTarget, options?: {
 }
 
 export type * from './shared'
-export { defineInboundEventa, defineOutboundEventa } from './shared'
