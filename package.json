@@ -20,6 +20,14 @@
       "type": "./dist/index.mts",
       "default": "./dist/index.mjs"
     },
+    "./adapters/electron/main": {
+      "type": "./dist/adapters/electron/main.mts",
+      "default": "./dist/adapters/electron/main.mjs"
+    },
+    "./adapters/electron/renderer": {
+      "type": "./dist/adapters/electron/renderer.mts",
+      "default": "./dist/adapters/electron/renderer.mjs"
+    },
     "./adapters/event-emitter": {
       "type": "./dist/adapters/event-emitter/index.mts",
       "default": "./dist/adapters/event-emitter/index.mjs"
@@ -88,6 +96,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^5.0.0",
+    "@electron-toolkit/preload": "^3.0.2",
     "@types/node": "^24.1.0",
     "@vitest/web-worker": "^3.2.4",
     "bumpp": "^10.2.0",

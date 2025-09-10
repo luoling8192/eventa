@@ -46,7 +46,7 @@ export function defineInvoke<Res, Req = undefined, ResErr = Error, ReqErr = Erro
 }
 
 export function defineInvokeHandler<Res, Req = undefined, ResErr = Error, ReqErr = Error>(serverCtx: EventContext, event: InvokeEventa<Res, Req, ResErr, ReqErr>, fn: (payload: Req) => Res) {
-  serverCtx.on(event.sendEvent, (payload) => { // on: event_trigger
+  serverCtx.on(event.sendEvent, async (payload) => { // on: event_trigger
     if (!payload.body) {
       return
     }
@@ -55,7 +55,7 @@ export function defineInvokeHandler<Res, Req = undefined, ResErr = Error, ReqErr
     }
 
     try {
-      const response = fn(payload.body?.content as Req) // Call the handler function with the request payload
+      const response = await fn(payload.body?.content as Req) // Call the handler function with the request payload
       serverCtx.emit(event.receiveEvent, { ...payload.body, content: response }) // emit: event_response
     }
     catch (error) {
