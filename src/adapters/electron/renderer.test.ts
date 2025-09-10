@@ -33,8 +33,8 @@ describe('event target', async () => {
 
     const onMocked = ipcRenderer.on as Mock
     expect(onMocked).toBeCalledTimes(2)
-    expect(onMocked).toBeCalledWith('message', expect.any(Function))
-    expect(onMocked).toBeCalledWith('error', expect.any(Function))
+    expect(onMocked).toBeCalledWith('eventa-message', expect.any(Function))
+    expect(onMocked).toBeCalledWith('eventa-error', expect.any(Function))
 
     const sendMocked = ipcRenderer.send as Mock
     ctx.emit(eventa, { message: 'Hello, Eventa!' }) // emit: eventa
@@ -65,8 +65,8 @@ describe('event target', async () => {
 
     const onMocked = ipcRenderer.on as Mock
     expect(onMocked).toBeCalledTimes(2)
-    expect(onMocked).toBeCalledWith('message', expect.any(Function))
-    expect(onMocked).toBeCalledWith('error', expect.any(Function))
+    expect(onMocked).toBeCalledWith('eventa-message', expect.any(Function))
+    expect(onMocked).toBeCalledWith('eventa-error', expect.any(Function))
 
     const sendMocked = ipcRenderer.send as Mock
     // NOTICE: though in real world there is no chance the .send(...) could be

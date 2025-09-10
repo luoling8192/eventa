@@ -1,3 +1,5 @@
+import type { BrowserWindow, IpcMain } from 'electron'
+
 import type { DirectionalEventa, Eventa } from '../../eventa'
 
 import { createContext as createBaseContext } from '../../context'
@@ -5,26 +7,26 @@ import { and, defineInboundEventa, defineOutboundEventa, EventaFlowDirection, ma
 import { generatePayload, parsePayload } from './internal'
 import { errorEvent } from './shared'
 
-function withRemoval(eventTarget: NodeJS.EventEmitter, type: string, listener: Parameters<NodeJS.EventEmitter['on']>[1]) {
-  eventTarget.on(type, listener)
+function withRemoval(ipcMain: IpcMain, type: string, listener: Parameters<IpcMain['on']>[1]) {
+  ipcMain.on(type, listener)
 
   return {
     remove: () => {
-      eventTarget.off(type, listener)
+      ipcMain.off(type, listener)
     },
   }
 }
 
-export function createContext(eventTarget: NodeJS.EventEmitter, options?: {
+export function createContext(ipcMain: IpcMain, window: BrowserWindow, options?: {
   messageEventName?: string | false
   errorEventName?: string | false
-  extraListeners?: Record<string, (event: Event) => void | Promise<void>>
+  extraListeners?: Record<string, (_, event: Event) => void | Promise<void>>
 }) {
   const ctx = createBaseContext()
 
   const {
-    messageEventName = 'message',
-    errorEventName = 'error',
+    messageEventName = 'eventa-message',
+    errorEventName = 'eventa-error',
     extraListeners = {},
   } = options || {}
 
@@ -34,31 +36,33 @@ export function createContext(eventTarget: NodeJS.EventEmitter, options?: {
     matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
     matchBy('*'),
   ), (event) => {
-    const detail = generatePayload(event.id, { ...defineOutboundEventa(event.type), ...event })
-    eventTarget.emit(event.id, detail)
+    const eventBody = generatePayload(event.id, { ...defineOutboundEventa(event.type), ...event })
+    if (messageEventName !== false) {
+      window.webContents.send(messageEventName, eventBody)
+    }
   })
 
   if (messageEventName) {
-    cleanupRemoval.push(withRemoval(eventTarget, messageEventName, (event) => {
+    cleanupRemoval.push(withRemoval(ipcMain, messageEventName, (_, event: Event | unknown) => {
       try {
-        const { type, payload } = parsePayload<Eventa<any>>((event as CustomEvent).detail)
+        const { type, payload } = parsePayload<Eventa<any>>(event)
         ctx.emit(defineInboundEventa(type), payload.body)
       }
       catch (error) {
-        console.error('Failed to parse EventEmitter message:', error)
+        console.error('Failed to parse IpcMain message:', error)
         ctx.emit(errorEvent, { error })
       }
     }))
   }
 
   if (errorEventName) {
-    cleanupRemoval.push(withRemoval(eventTarget, errorEventName, (error) => {
+    cleanupRemoval.push(withRemoval(ipcMain, errorEventName, (_, error: Event | unknown) => {
       ctx.emit(errorEvent, { error })
     }))
   }
 
   for (const [eventName, listener] of Object.entries(extraListeners)) {
-    cleanupRemoval.push(withRemoval(eventTarget, eventName, listener))
+    cleanupRemoval.push(withRemoval(ipcMain, eventName, listener))
   }
 
   return {
