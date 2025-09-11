@@ -22,7 +22,7 @@ export function createContext(worker: Worker) {
       ctx.emit(defineInboundEventa(type), payload.body)
     }
     catch (error) {
-      console.error('Failed to parse WebSocket message:', error)
+      console.error('Failed to parse WebWorker message:', error)
       ctx.emit(workerErrorEvent, { error })
     }
   }
