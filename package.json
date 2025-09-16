@@ -1,7 +1,7 @@
 {
   "name": "@unbird/eventa",
   "type": "module",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "packageManager": "pnpm@10.13.1",
   "description": "Events are all you need",
   "author": {
