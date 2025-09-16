@@ -7,8 +7,8 @@ import { describe, expect, it } from 'vitest'
 import { defineInvoke, defineInvokeHandler } from '../../invoke'
 import { defineInvokeEventa } from '../../invoke-shared'
 import { createUntil, randomBetween } from '../../utils'
-import { createContext as createClientContext } from './browser'
-import { createContext as createServerContext } from './h3'
+import { createGlobalContext as createServerContext } from './h3'
+import { createContext as createClientContext } from './native'
 
 describe('adapters', async () => {
   it('it should work for h3 with browser', async (testCtx) => {

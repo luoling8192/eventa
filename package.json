@@ -18,42 +18,52 @@
   "exports": {
     ".": {
       "type": "./dist/index.mts",
+      "import": "./dist/index.mjs",
       "default": "./dist/index.mjs"
     },
     "./adapters/electron/main": {
       "type": "./dist/adapters/electron/main.mts",
+      "import": "./dist/adapters/electron/main.mjs",
       "default": "./dist/adapters/electron/main.mjs"
     },
     "./adapters/electron/renderer": {
       "type": "./dist/adapters/electron/renderer.mts",
+      "import": "./dist/adapters/electron/renderer.mjs",
       "default": "./dist/adapters/electron/renderer.mjs"
     },
     "./adapters/event-emitter": {
       "type": "./dist/adapters/event-emitter/index.mts",
+      "import": "./dist/adapters/event-emitter/index.mjs",
       "default": "./dist/adapters/event-emitter/index.mjs"
     },
     "./adapters/event-target": {
       "type": "./dist/adapters/event-target/index.mts",
+      "import": "./dist/adapters/event-target/index.mjs",
       "default": "./dist/adapters/event-target/index.mjs"
     },
     "./adapters/webworkers/worker": {
       "type": "./dist/adapters/webworkers/worker/index.mts",
+      "import": "./dist/adapters/webworkers/worker/index.mjs",
       "default": "./dist/adapters/webworkers/worker/index.mjs"
     },
     "./adapters/webworkers": {
       "type": "./dist/adapters/webworkers/index.mts",
+      "import": "./dist/adapters/webworkers/index.mjs",
       "default": "./dist/adapters/webworkers/index.mjs"
     },
-    "./adapters/websocket/browser": {
-      "type": "./dist/adapters/websocket/browser/index.mts",
-      "default": "./dist/adapters/websocket/browser/index.mjs"
+    "./adapters/websocket/native": {
+      "type": "./dist/adapters/websocket/native/index.mts",
+      "import": "./dist/adapters/websocket/native/index.mjs",
+      "default": "./dist/adapters/websocket/native/index.mjs"
     },
     "./adapters/websocket/h3": {
       "type": "./dist/adapters/websocket/h3/index.mts",
+      "import": "./dist/adapters/websocket/h3/index.mjs",
       "default": "./dist/adapters/websocket/h3/index.mjs"
     },
     "./adapters/websocket": {
       "type": "./dist/adapters/websocket/index.mts",
+      "import": "./dist/adapters/websocket/index.mjs",
       "default": "./dist/adapters/websocket/index.mjs"
     }
   },

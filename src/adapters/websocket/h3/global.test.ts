@@ -6,14 +6,14 @@ import { plugin as ws } from 'crossws/server'
 import { defineWebSocketHandler, H3, serve } from 'h3'
 import { describe, expect, it, vi } from 'vitest'
 
-import { createContext, wsConnectedEvent, wsDisconnectedEvent, wsErrorEvent } from '.'
 import { defineEventa, nanoid } from '../../../eventa'
 import { createUntil, randomBetween } from '../../../utils'
+import { createGlobalContext, wsConnectedEvent, wsDisconnectedEvent, wsErrorEvent } from './global'
 
 describe('h3 websocket adapter', { timeout: 2000 }, async () => {
   it('should create a h3 ws adapter and handle events with native', async (testCtx) => {
     const port = randomBetween(40000, 50000)
-    const { websocketHandlers, context: ctx } = createContext()
+    const { websocketHandlers, context: ctx } = createGlobalContext()
     const app = new H3()
     app.get('/ws', defineWebSocketHandler(websocketHandlers))
 
@@ -71,7 +71,7 @@ describe('h3 websocket adapter', { timeout: 2000 }, async () => {
 
   it('should create a h3 ws adapter and handle events with context', async (testCtx) => {
     const port = randomBetween(40000, 50000)
-    const { websocketHandlers, context: ctx } = createContext()
+    const { websocketHandlers, context: ctx } = createGlobalContext()
     const app = new H3()
     app.get('/ws', defineWebSocketHandler(websocketHandlers))
 
@@ -118,7 +118,7 @@ describe('h3 websocket adapter', { timeout: 2000 }, async () => {
 
   it('should handle connection lifecycle events', async (testCtx) => {
     const port = randomBetween(40000, 50000)
-    const { websocketHandlers, context: ctx } = createContext()
+    const { websocketHandlers, context: ctx } = createGlobalContext()
     const app = new H3()
     app.get('/ws', defineWebSocketHandler(websocketHandlers))
 
