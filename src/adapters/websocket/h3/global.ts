@@ -1,5 +1,6 @@
 import type { Hooks, Peer } from 'crossws'
 
+import type { EventContext } from '../../../context'
 import type { DirectionalEventa, Eventa } from '../../../eventa'
 
 import { createContext as createBaseContext } from '../../../context'
@@ -12,7 +13,7 @@ export const wsErrorEvent = defineEventa<{ error: unknown }>('eventa:adapters:we
 
 export function createGlobalContext(): {
   websocketHandlers: Omit<Hooks, 'upgrade'>
-  context: ReturnType<typeof createBaseContext>
+  context: EventContext
 } {
   const ctx = createBaseContext()
   const peers = new Set<Peer>()

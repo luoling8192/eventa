@@ -1,5 +1,6 @@
 import type { Hooks, Peer } from 'crossws'
 
+import type { EventContext } from '../../../context'
 import type { DirectionalEventa, Eventa } from '../../../eventa'
 
 import { createContext as createBaseContext } from '../../../context'
@@ -12,7 +13,7 @@ export const wsErrorEvent = defineEventa<{ error: unknown }>('eventa:adapters:we
 
 export function createPeerContext(peer: Peer): {
   hooks: Pick<Hooks, 'message'>
-  context: ReturnType<typeof createBaseContext>
+  context: EventContext
 } {
   const peerId = peer.id
   const ctx = createBaseContext()
@@ -44,7 +45,7 @@ export function createPeerContext(peer: Peer): {
   }
 }
 
-export interface PeerContext { peer: Peer, context: ReturnType<typeof createBaseContext> }
+export interface PeerContext { peer: Peer, context: EventContext }
 
 export function createPeerHooks(): { hooks: Partial<Hooks>, untilLeastOneConnected: Promise<PeerContext> } {
   let resolve: (value: PeerContext) => void

@@ -3,7 +3,7 @@ import type { InvokeEventa } from './invoke-shared'
 
 import { nanoid } from './eventa'
 
-type IsInvokeRequestOptional<EC extends EventContext<any>>
+type IsInvokeRequestOptional<EC extends EventContext<any, any>>
   = EC extends EventContext<infer E>
     ? E extends { invokeRequest?: any }
       ? undefined extends E['invokeRequest']
@@ -12,7 +12,7 @@ type IsInvokeRequestOptional<EC extends EventContext<any>>
       : true
     : true
 
-type ExtractInvokeRequest<EC extends EventContext<any>>
+type ExtractInvokeRequest<EC extends EventContext<any, any>>
   = EC extends EventContext<infer E>
     ? E extends { invokeRequest: infer IR }
       ? IR
@@ -27,7 +27,8 @@ export function defineInvoke<
   ResErr = Error,
   ReqErr = Error,
   E = any,
-  EC extends EventContext<E> = EventContext<E>,
+  EO = any,
+  EC extends EventContext<E, EO> = EventContext<E, EO>,
 >(clientCtx: EC, event: InvokeEventa<Res, Req, ResErr, ReqErr>) {
   const mInvokeIdPromiseResolvers = new Map<string, (value: Res | PromiseLike<Res>) => void>()
   const mInvokeIdPromiseRejectors = new Map<string, (err?: any) => void>()
@@ -91,7 +92,8 @@ export function defineInvokeHandler<
   ResErr = Error,
   ReqErr = Error,
   E = any,
-  EC extends EventContext<E> = EventContext<E>,
+  EO = any,
+  EC extends EventContext<E, EO> = EventContext<E, EO>,
 >(serverCtx: EC, event: InvokeEventa<Res, Req, ResErr, ReqErr>, fn: (payload: Req) => Res) {
   serverCtx.on(event.sendEvent, async (payload) => { // on: event_trigger
     if (!payload.body) {
