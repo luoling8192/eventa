@@ -1,27 +1,34 @@
 /* eslint-disable no-restricted-globals */
+import type { EventContext } from '../../../context'
 import type { DirectionalEventa, Eventa } from '../../../eventa'
 
 import { createContext as createBaseContext } from '../../../context'
 import { and, defineInboundEventa, defineOutboundEventa, EventaFlowDirection, matchBy } from '../../../eventa'
 import { generateWorkerPayload, parseWorkerPayload } from '../internal'
-import { workerErrorEvent } from '../shared'
+import { isWorkerEventa, normalizeOnListenerParameters, workerErrorEvent } from '../shared'
 
 export function createContext(options?: {
-  messagePort?: Omit<MessagePort, 'close' | 'start'>
+  messagePort?: Omit<Worker, 'close' | 'start'>
 }): {
-  context: ReturnType<typeof createBaseContext>
+  context: EventContext
 } {
   const {
     messagePort = self,
   } = options || {}
 
-  const ctx = createBaseContext()
+  const ctx = createBaseContext() as EventContext<{ invokeRequest?: { transfer?: Transferable[] } }>
 
   ctx.on(and(
     matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
     matchBy('*'),
-  ), (event) => {
-    const data = generateWorkerPayload(event.id, { ...defineOutboundEventa(event.type), ...event })
+  ), (event, options) => {
+    const { body, transfer } = normalizeOnListenerParameters(event, options)
+    const data = generateWorkerPayload(event.id, { ...defineOutboundEventa(event.type), ...event, body })
+    if (transfer != null) {
+      messagePort.postMessage(data, { transfer })
+      return
+    }
+
     messagePort.postMessage(data)
   })
 
@@ -32,7 +39,12 @@ export function createContext(options?: {
   self.onmessage = (event) => {
     try {
       const { type, payload } = parseWorkerPayload<Eventa<any>>(event.data)
-      ctx.emit(defineInboundEventa(type), payload.body)
+      if (!isWorkerEventa(payload)) {
+        ctx.emit(defineInboundEventa(type), payload.body)
+      }
+      else {
+        ctx.emit(defineInboundEventa(type), { message: payload.body })
+      }
     }
     catch (error) {
       console.error('Failed to parse WebSocket message:', error)

@@ -3,33 +3,29 @@ import type { Eventa, EventaMatchExpression, EventTag } from './eventa'
 
 import { EventaType } from './eventa'
 
-interface CreateContextProps {
-  adapter?: EventaAdapter
-
-  // hooks?: {
-  //   onReceived?: (event: Event<any, any>) => void
-  // }
+interface CreateContextProps<EmitOptions = any> {
+  adapter?: EventaAdapter<EmitOptions>
 }
 
-export function createContext(props: CreateContextProps = {}) {
-  const listeners = new Map<EventTag<any, any>, Set<(params: any) => any>>()
-  const onceListeners = new Map<EventTag<any, any>, Set<(params: any) => any>>()
+export function createContext<Extensions = any, EmitOptions = any>(props: CreateContextProps<EmitOptions> = {}): EventContext<Extensions, EmitOptions> {
+  const listeners = new Map<EventTag<any, any>, Set<(params: any, options?: EmitOptions) => any>>()
+  const onceListeners = new Map<EventTag<any, any>, Set<(params: any, options?: EmitOptions) => any>>()
 
   const matchExpressions = new Map<string, EventaMatchExpression<any>>()
-  const matchExpressionListeners = new Map<string, Set<(params: any) => any>>()
-  const matchExpressionOnceListeners = new Map<string, Set<(params: any) => any>>()
+  const matchExpressionListeners = new Map<string, Set<(params: any, options?: EmitOptions) => any>>()
+  const matchExpressionOnceListeners = new Map<string, Set<(params: any, options?: EmitOptions) => any>>()
 
   const hooks = props.adapter?.(emit).hooks
 
-  function emit<P>(event: Eventa<P>, payload: P) {
+  function emit<P>(event: Eventa<P>, payload: P, options?: EmitOptions) {
     const emittingPayload = { ...event, body: payload }
 
     for (const listener of listeners.get(event.id) || []) {
-      listener(emittingPayload)
+      listener(emittingPayload, options)
     }
 
     for (const onceListener of onceListeners.get(event.id) || []) {
-      onceListener(emittingPayload)
+      onceListener(emittingPayload, options)
       onceListeners.get(event.id)?.delete(onceListener)
     }
 
@@ -41,16 +37,16 @@ export function createContext(props: CreateContextProps = {}) {
         }
 
         for (const listener of matchExpressionListeners.get(matchExpression.id) || []) {
-          listener(emittingPayload)
+          listener(emittingPayload, options)
         }
         for (const onceListener of matchExpressionOnceListeners.get(matchExpression.id) || []) {
-          onceListener(emittingPayload)
+          onceListener(emittingPayload, options)
           matchExpressionOnceListeners.get(matchExpression.id)?.delete(onceListener)
         }
       }
     }
 
-    hooks?.onSent(event.id, emittingPayload)
+    hooks?.onSent(event.id, emittingPayload, options)
   }
 
   return {
@@ -64,7 +60,7 @@ export function createContext(props: CreateContextProps = {}) {
 
     emit,
 
-    on<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>) => void) {
+    on<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void) {
       if (eventOrMatchExpression.type === EventaType.Event) {
         const event = eventOrMatchExpression as Eventa<P>
         if (!listeners.has(event.id)) {
@@ -73,8 +69,8 @@ export function createContext(props: CreateContextProps = {}) {
 
         listeners
           .get(event.id)
-          ?.add((payload: Eventa<P>) => {
-            handler(payload)
+          ?.add((payload: Eventa<P>, options?: EmitOptions) => {
+            handler(payload, options)
             hooks?.onReceived?.(event.id, payload)
           })
       }
@@ -89,14 +85,14 @@ export function createContext(props: CreateContextProps = {}) {
 
         matchExpressionListeners
           .get(matchExpression.id)
-          ?.add((payload: Eventa<P>) => {
-            handler(payload)
+          ?.add((payload: Eventa<P>, options?: EmitOptions) => {
+            handler(payload, options)
             hooks?.onReceived?.(matchExpression.id, payload)
           })
       }
     },
 
-    once<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>) => void) {
+    once<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void) {
       if (eventOrMatchExpression.type === EventaType.Event) {
         const event = eventOrMatchExpression as Eventa<P>
         if (!onceListeners.has(event.id)) {
@@ -105,8 +101,8 @@ export function createContext(props: CreateContextProps = {}) {
 
         onceListeners
           .get(event.id)
-          ?.add((payload: Eventa<P>) => {
-            handler(payload)
+          ?.add((payload: Eventa<P>, options?: EmitOptions) => {
+            handler(payload, options)
             hooks?.onReceived?.(event.id, payload)
           })
       }
@@ -121,8 +117,8 @@ export function createContext(props: CreateContextProps = {}) {
 
         matchExpressionOnceListeners
           .get(matchExpression.id)
-          ?.add((payload: Eventa<P>) => {
-            handler(payload)
+          ?.add((payload: Eventa<P>, options?: EmitOptions) => {
+            handler(payload, options)
             hooks?.onReceived?.(matchExpression.id, payload)
           })
       }
@@ -141,5 +137,19 @@ export function createContext(props: CreateContextProps = {}) {
   }
 }
 
-export type EventContext = ReturnType<typeof createContext>
+export interface EventContext<Extensions = any, EmitOptions = undefined> {
+  listeners: Map<EventTag<any, any>, Set<(params: any) => any>>
+  onceListeners: Map<EventTag<any, any>, Set<(params: any) => any>>
+
+  emit: <P>(event: Eventa<P>, payload: P, options?: EmitOptions) => void
+  on: <P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void) => void
+  once: <P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void) => void
+  off: <P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>) => void
+
+  /**
+   * Extensions
+   */
+  extensions?: Extensions
+}
+
 export type EventContextEmitFn = EventContext['emit']

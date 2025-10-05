@@ -12,7 +12,7 @@ describe('eventContext', () => {
     ctx.on(testEvent, handler)
     ctx.emit(testEvent, { data: 'test' })
 
-    expect(handler).toHaveBeenCalledWith({ ...testEvent, body: { data: 'test' } })
+    expect(handler).toHaveBeenCalledWith({ ...testEvent, body: { data: 'test' } }, undefined)
   })
 
   it('should handle once listeners', () => {
@@ -25,7 +25,7 @@ describe('eventContext', () => {
     ctx.emit(testEvent, { data: 'test2' })
 
     expect(handler).toHaveBeenCalledTimes(1)
-    expect(handler).toHaveBeenCalledWith({ ...testEvent, body: { data: 'test1' } })
+    expect(handler).toHaveBeenCalledWith({ ...testEvent, body: { data: 'test1' } }, undefined)
   })
 
   it('should remove listeners with off', () => {
