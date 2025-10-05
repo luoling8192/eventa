@@ -1,7 +1,163 @@
-# Eventa
+# `eventa`
 
-Events are all you need
+Transport-aware events powering ergonomic RPC and streaming flows.
+
+> Heavily inspired by pragmatic RPC flows, but centred on pure events so transports stay swappable.
+
+> [!WARNING]
+> Eventa forwards whatever payload you emit. Validate data at the edges before sending it to untrusted peers.
+
+## Installation
 
 ```sh
-pnpm add @unbird/eventa
+npm install @unbird/eventa
+pnpm i @unbird/eventa
+bun i @unbird/eventa
+ni @unbird/eventa
+yarn add @unbird/eventa
 ```
+
+## Getting Started
+
+Eventa comes with various adapters for common use scenarios across browsers and Node.js, escalating the event orchestration in Electron, Web Workers, and WebSockets, etc.
+
+### Electron
+
+1. Create a shared events module:
+   ```ts
+   import { defineInvokeEventa } from '@unbird/eventa'
+
+   export const readdir = defineInvokeEventa<{ directories: string[] }, { cwd: string, target: string }>('rpc:node:fs/promise:readdir')
+   ```
+
+2. In the main process, bridge the adapter to `ipcMain` and your `BrowserWindow` instance:
+   ```ts
+   import { createContext as createMainContext } from '@unbird/eventa/adapters/electron/main'
+   import { app, BrowserWindow, ipcMain } from 'electron'
+
+   import { readdir } from './events/readdir'
+
+   app.on('ready', () => {
+     // ... other code
+     const { context: mainCtx } = createMainContext(ipcMain, mainWindow.webContents)
+     defineInvokeHandler(mainCtx, readdir, async ({ cwd, target }) => {
+       const fs = await import('node:fs/promises')
+       const path = await import('node:path')
+       const fullPath = path.resolve(cwd, target)
+       const directories = await fs.readdir(fullPath, { withFileTypes: true })
+       return { directories: directories.filter(dirent => dirent.isDirectory()).map(dirent => dirent.name) }
+     })
+   })
+   ```
+3. In the renderer (not restricted to preload scripts, but recommended), bridge to `ipcRenderer` and expose a safe API:
+   ```ts
+   import { createContext as createRendererContext } from '@unbird/eventa/adapters/electron/renderer'
+   import { contextBridge, ipcRenderer } from 'electron'
+
+   import { defineInvoke, readdir } from './events/readdir'
+
+   const { context: rendererCtx } = createRendererContext(ipcRenderer)
+   const invokeReaddir = defineInvoke(rendererCtx, readdir)
+
+   document.addEventListener('DOMContentLoaded', () => {
+     invokeReaddir({ cwd: '/', target: 'usr' }).then((result) => {
+       console.log('directories', result.directories)
+     })
+   })
+   ```
+4. The main and renderer contexts now share the invoke pipeline used throughout the examples in `src/adapters/electron/*.test.ts`.
+
+### Web Workers
+
+1. Spawn the worker and wrap it with the main-thread adapter:
+   ```ts
+   import Worker from 'web-worker'
+
+   import { createContext, defineInvoke, defineInvokeEventa } from '@unbird/eventa/adapters/webworkers'
+
+   const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' })
+   const { context: mainCtx } = createContext(worker)
+
+   export const syncEvents = defineInvokeEventa<{ status: string }, { jobId: string }>('worker:sync')
+   export const invokeSync = defineInvoke(mainCtx, syncEvents)
+   ```
+2. Inside the worker entry, create the worker context and register handlers:
+   ```ts
+   import { defineInvokeHandler } from '@unbird/eventa'
+   import { createContext } from '@unbird/eventa/adapters/webworkers/worker'
+
+   import { syncEvents } from '../sync'
+
+   const { context: workerCtx } = createContext()
+   defineInvokeHandler(workerCtx, syncEvents, ({ jobId }) => ({ status: `synced ${jobId}` }))
+   ```
+3. The same pattern works for streaming handlers and for sending transferrable(s) by switching to `defineStreamInvoke` or `defineOutboundWorkerEventa` as shown in `src/adapters/webworkers/index.spec.ts`.
+
+### WebSocket (Browser client)
+
+1. Open a `WebSocket` and wrap it with the native adapter:
+   ```ts
+   import { defineInvoke, defineInvokeEventa } from '@unbird/eventa'
+   import { createContext as createWsContext } from '@unbird/eventa/adapters/websocket/native'
+
+   const socket = new WebSocket('wss://example.com/ws')
+   const { context: wsCtx } = createWsContext(socket)
+
+   const chatEvents = defineInvokeEventa<{ message: string }, { text: string }>('chat:send')
+   export const sendChat = defineInvoke(wsCtx, chatEvents)
+   ```
+2. Listen for connection lifecycle events to update UI state or retry logic:
+   ```ts
+   import { wsConnectedEvent, wsDisconnectedEvent } from '@unbird/eventa/adapters/websocket/native'
+
+   wsCtx.on(wsConnectedEvent, () => console.log('connected'))
+   wsCtx.on(wsDisconnectedEvent, () => console.log('disconnected'))
+   ```
+3. Pair the client with either the H3 global or peer adapter on the server for a full RPC channel (`src/adapters/websocket/h3/*.test.ts`).
+
+## Advanced Usage
+
+### Streaming RPC
+
+`defineInvokeHandler` is complemented by `defineStreamInvokeHandler` for long-running operations that need to report progress or intermediate results.
+
+```ts
+import { createContext, defineInvokeEventa, defineStreamInvoke, defineStreamInvokeHandler, toStreamHandler } from '@unbird/eventa'
+
+const ctx = createContext()
+const syncEvents = defineInvokeEventa<
+  { type: 'progress' | 'result', value: number },
+  { jobId: string }
+>('rpc:sync')
+
+// toStreamHelper converts an async function into an async generator
+// so you can use imperative code instead of a generator function.
+defineStreamInvokeHandler(ctx, syncEvents, toStreamHandler(async ({ payload, emit }) => {
+  emit({ type: 'progress', value: 0 })
+  for (let i = 1; i <= 5; i++) {
+    emit({ type: 'progress', value: i * 20 })
+  }
+  emit({ type: 'result', value: 100 })
+}))
+
+const stream = defineStreamInvoke(ctx, syncEvents)({ jobId: 'import' })
+for await (const update of stream) {
+  console.log(update.type, update.value)
+}
+```
+
+Both generator-style and imperative handlers are exercised in `src/stream.spec.ts:7`.
+
+## Development
+
+```sh
+pnpm i
+pnpm test
+```
+
+> [!NOTE]
+> `pnpm test` runs Vitest interactively. Use `pnpm test:run` for a single pass.
+
+## License
+
+MIT
