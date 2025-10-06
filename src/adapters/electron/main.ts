@@ -2,7 +2,6 @@ import type { BrowserWindow, IpcMain } from 'electron'
 
 import type { DirectionalEventa, Eventa } from '../../eventa'
 
-import { name } from '../../../package.json'
 import { createContext as createBaseContext } from '../../context'
 import { and, defineInboundEventa, defineOutboundEventa, EventaFlowDirection, matchBy } from '../../eventa'
 import { generatePayload, parsePayload } from './internal'
@@ -30,7 +29,6 @@ export function createContext(ipcMain: IpcMain, window: BrowserWindow, options?:
     messageEventName = 'eventa-message',
     errorEventName = 'eventa-error',
     extraListeners = {},
-    throwIfFailedToSend = false,
   } = options || {}
 
   const cleanupRemoval: Array<{ remove: () => void }> = []
@@ -45,9 +43,7 @@ export function createContext(ipcMain: IpcMain, window: BrowserWindow, options?:
         window?.webContents?.send(messageEventName, eventBody)
       }
       catch (error) {
-        console.error('[', name, '] failed to send IpcMain message:', error)
-
-        if (throwIfFailedToSend) {
+        if (!(error instanceof Error) || error?.message !== 'Object has been destroyed') {
           throw error
         }
       }

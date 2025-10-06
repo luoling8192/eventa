@@ -2,7 +2,6 @@ import type { IpcRenderer, IpcRendererListener } from '@electron-toolkit/preload
 
 import type { DirectionalEventa, Eventa } from '../../eventa'
 
-import { name } from '../../../package.json'
 import { createContext as createBaseContext } from '../../context'
 import { and, defineInboundEventa, defineOutboundEventa, EventaFlowDirection, matchBy } from '../../eventa'
 import { generatePayload, parsePayload } from './internal'
@@ -12,7 +11,6 @@ export function createContext(ipcRenderer: IpcRenderer, options?: {
   messageEventName?: string | false
   errorEventName?: string | false
   extraListeners?: Record<string, IpcRendererListener>
-  throwIfFailedToSend?: boolean
 }) {
   const ctx = createBaseContext()
 
@@ -20,7 +18,6 @@ export function createContext(ipcRenderer: IpcRenderer, options?: {
     messageEventName = 'eventa-message',
     errorEventName = 'eventa-error',
     extraListeners = {},
-    throwIfFailedToSend = false,
   } = options || {}
 
   const cleanupRemoval: Array<{ remove: () => void }> = []
@@ -35,9 +32,7 @@ export function createContext(ipcRenderer: IpcRenderer, options?: {
         ipcRenderer.send(messageEventName, eventBody)
       }
       catch (error) {
-        console.error('[', name, '] failed to send IpcRenderer message:', error)
-
-        if (throwIfFailedToSend) {
+        if (!(error instanceof Error) || error?.message !== 'Object has been destroyed') {
           throw error
         }
       }
