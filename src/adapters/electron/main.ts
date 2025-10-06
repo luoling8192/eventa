@@ -2,6 +2,7 @@ import type { BrowserWindow, IpcMain } from 'electron'
 
 import type { DirectionalEventa, Eventa } from '../../eventa'
 
+import { name } from '../../../package.json'
 import { createContext as createBaseContext } from '../../context'
 import { and, defineInboundEventa, defineOutboundEventa, EventaFlowDirection, matchBy } from '../../eventa'
 import { generatePayload, parsePayload } from './internal'
@@ -21,6 +22,7 @@ export function createContext(ipcMain: IpcMain, window: BrowserWindow, options?:
   messageEventName?: string | false
   errorEventName?: string | false
   extraListeners?: Record<string, (_, event: Event) => void | Promise<void>>
+  throwIfFailedToSend?: boolean
 }) {
   const ctx = createBaseContext()
 
@@ -28,6 +30,7 @@ export function createContext(ipcMain: IpcMain, window: BrowserWindow, options?:
     messageEventName = 'eventa-message',
     errorEventName = 'eventa-error',
     extraListeners = {},
+    throwIfFailedToSend = false,
   } = options || {}
 
   const cleanupRemoval: Array<{ remove: () => void }> = []
@@ -38,7 +41,16 @@ export function createContext(ipcMain: IpcMain, window: BrowserWindow, options?:
   ), (event) => {
     const eventBody = generatePayload(event.id, { ...defineOutboundEventa(event.type), ...event })
     if (messageEventName !== false) {
-      window.webContents.send(messageEventName, eventBody)
+      try {
+        window?.webContents?.send(messageEventName, eventBody)
+      }
+      catch (error) {
+        console.error('[', name, '] failed to send IpcMain message:', error)
+
+        if (throwIfFailedToSend) {
+          throw error
+        }
+      }
     }
   })
 
