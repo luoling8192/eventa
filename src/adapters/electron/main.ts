@@ -40,9 +40,14 @@ export function createContext(ipcMain: IpcMain, window: BrowserWindow, options?:
     const eventBody = generatePayload(event.id, { ...defineOutboundEventa(event.type), ...event })
     if (messageEventName !== false) {
       try {
+        if (window.isDestroyed()) {
+          return
+        }
+
         window?.webContents?.send(messageEventName, eventBody)
       }
       catch (error) {
+        // Electron may throw if the window is closed before sending
         if (!(error instanceof Error) || error?.message !== 'Object has been destroyed') {
           throw error
         }
