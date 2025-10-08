@@ -20,6 +20,7 @@ describe('event target', async () => {
       on: vi.fn(),
     } as unknown as IpcMain
     const browserWindow = {
+      isDestroyed: () => false,
       webContents: {
         send: vi.fn(),
       },
@@ -52,6 +53,7 @@ describe('event target', async () => {
       on: vi.fn(),
     } as unknown as IpcMain
     const browserWindow = {
+      isDestroyed: () => false,
       webContents: {
         send: vi.fn(),
       },

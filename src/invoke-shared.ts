@@ -73,3 +73,30 @@ export function defineInvokeEventa<Res, Req = undefined, ResErr = Error, ReqErr 
     receiveEventStreamEnd,
   } satisfies InvokeEventa<Res, Req, ResErr, ReqErr>
 }
+
+export function isInvokeEventa(event: Eventa<any>): event is SendEvent<any, any, any, any> | SendEventError<any, any, any, any> | ReceiveEvent<any, any, any, any> | ReceiveEventError<any, any, any, any> | ReceiveEventStreamEnd<any, any, any, any> {
+  if (typeof event !== 'object') {
+    return false
+  }
+  if ('invokeType' in event) {
+    return true
+  }
+
+  return false
+}
+
+export function isSendEvent(event: Eventa<any>): event is SendEvent<any, any, any, any> | SendEventError<any, any, any, any> {
+  if (!isInvokeEventa(event)) {
+    return false
+  }
+
+  return event.invokeType === InvokeEventType.SendEvent || event.invokeType === InvokeEventType.SendEventError
+}
+
+export function isReceiveEvent(event: Eventa<any>): event is ReceiveEvent<any, any, any, any> | ReceiveEventError<any, any, any, any> | ReceiveEventStreamEnd<any, any, any, any> {
+  if (!isInvokeEventa(event)) {
+    return false
+  }
+
+  return event.invokeType === InvokeEventType.ReceiveEvent || event.invokeType === InvokeEventType.ReceiveEventError || event.invokeType === InvokeEventType.ReceiveEventStreamEnd
+}

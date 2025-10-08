@@ -100,4 +100,65 @@ describe('stream', () => {
     expect(progressCalled).toBe(5)
     expect(resultCalled).toBe(1)
   })
+
+  it('should isolate concurrent stream invocations', async () => {
+    const ctx = createContext()
+
+    interface Parameter { name: string, steps: number }
+    interface Progress { type: 'progress', name: string, step: number }
+    interface Result { type: 'result', name: string }
+
+    const events = defineInvokeEventa<Progress | Result, Parameter>()
+    const sleep = () => new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    defineStreamInvokeHandler(ctx, events, ({ name, steps }) => {
+      return (async function* () {
+        for (let i = 1; i <= steps; i++) {
+          await sleep()
+          const progress: Progress = { type: 'progress', name, step: i }
+          yield progress
+        }
+
+        const result: Result = { type: 'result', name }
+        yield result
+      }())
+    })
+
+    const invoke = defineStreamInvoke(ctx, events)
+
+    const collect = async (payload: Parameter) => {
+      const outputs: Array<Progress | Result> = []
+      const stream = invoke(payload)
+      for await (const value of stream) {
+        outputs.push(value)
+      }
+
+      return outputs
+    }
+
+    const [alice, bob, cathy] = await Promise.all([
+      collect({ name: 'alice', steps: 3 }),
+      collect({ name: 'bob', steps: 2 }),
+      collect({ name: 'cathy', steps: 4 }),
+    ])
+
+    expect(alice).toEqual([
+      { type: 'progress', name: 'alice', step: 1 },
+      { type: 'progress', name: 'alice', step: 2 },
+      { type: 'progress', name: 'alice', step: 3 },
+      { type: 'result', name: 'alice' },
+    ])
+    expect(bob).toEqual([
+      { type: 'progress', name: 'bob', step: 1 },
+      { type: 'progress', name: 'bob', step: 2 },
+      { type: 'result', name: 'bob' },
+    ])
+    expect(cathy).toEqual([
+      { type: 'progress', name: 'cathy', step: 1 },
+      { type: 'progress', name: 'cathy', step: 2 },
+      { type: 'progress', name: 'cathy', step: 3 },
+      { type: 'progress', name: 'cathy', step: 4 },
+      { type: 'result', name: 'cathy' },
+    ])
+  })
 })

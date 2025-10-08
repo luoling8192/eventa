@@ -74,7 +74,7 @@ export function createContext<Extensions = any, EmitOptions = any>(props: Create
             hooks?.onReceived?.(event.id, payload)
           })
       }
-      if (eventOrMatchExpression.type === EventaType.MatchExpression) {
+      else if (eventOrMatchExpression.type === EventaType.MatchExpression) {
         const matchExpression = eventOrMatchExpression as EventaMatchExpression<P>
         if (!matchExpressions.has(matchExpression.id)) {
           matchExpressions.set(matchExpression.id, matchExpression as EventaMatchExpression<P>)
@@ -106,7 +106,7 @@ export function createContext<Extensions = any, EmitOptions = any>(props: Create
             hooks?.onReceived?.(event.id, payload)
           })
       }
-      if (eventOrMatchExpression.type === EventaType.MatchExpression) {
+      else if (eventOrMatchExpression.type === EventaType.MatchExpression) {
         const matchExpression = eventOrMatchExpression as EventaMatchExpression<P>
         if (!matchExpressions.has(matchExpression.id)) {
           matchExpressions.set(matchExpression.id, matchExpression as EventaMatchExpression<P>)

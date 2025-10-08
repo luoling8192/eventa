@@ -1,7 +1,7 @@
 import type { EventContext } from './context'
-import type { InvokeEventa } from './invoke-shared'
+import type { InvokeEventa, ReceiveEvent, ReceiveEventError } from './invoke-shared'
 
-import { nanoid } from './eventa'
+import { defineEventa, nanoid } from './eventa'
 
 type IsInvokeRequestOptional<EC extends EventContext<any, any>>
   = EC extends EventContext<infer E>
@@ -41,7 +41,10 @@ export function defineInvoke<
       mInvokeIdPromiseResolvers.set(invokeId, resolve)
       mInvokeIdPromiseRejectors.set(invokeId, reject)
 
-      clientCtx.on(event.receiveEvent, (payload) => {
+      const invokeReceiveEvent = defineEventa(`${event.receiveEvent.id}-${invokeId}`) as ReceiveEvent<Res>
+      const invokeReceiveEventError = defineEventa(`${event.receiveEventError.id}-${invokeId}`) as ReceiveEventError<ResErr>
+
+      clientCtx.on(invokeReceiveEvent, (payload) => {
         if (!payload.body) {
           return
         }
@@ -53,10 +56,11 @@ export function defineInvoke<
         mInvokeIdPromiseResolvers.get(invokeId)?.(content as Res)
         mInvokeIdPromiseResolvers.delete(invokeId)
         mInvokeIdPromiseRejectors.delete(invokeId)
-        clientCtx.off(event.receiveEvent) // Clean up listener after receiving response
+        clientCtx.off(invokeReceiveEvent)
+        clientCtx.off(invokeReceiveEventError)
       })
 
-      clientCtx.on(event.receiveEventError, (payload) => {
+      clientCtx.on(invokeReceiveEventError, (payload) => {
         if (!payload.body) {
           return
         }
@@ -68,6 +72,8 @@ export function defineInvoke<
         mInvokeIdPromiseRejectors.get(invokeId)?.(error)
         mInvokeIdPromiseRejectors.delete(invokeId)
         mInvokeIdPromiseResolvers.delete(invokeId)
+        clientCtx.off(invokeReceiveEvent)
+        clientCtx.off(invokeReceiveEventError)
       })
 
       clientCtx.emit(event.sendEvent, { invokeId, content: req }, options as any) // emit: event_trigger
@@ -94,7 +100,7 @@ export function defineInvokeHandler<
   E = any,
   EO = any,
   EC extends EventContext<E, EO> = EventContext<E, EO>,
->(serverCtx: EC, event: InvokeEventa<Res, Req, ResErr, ReqErr>, fn: (payload: Req) => Res) {
+>(serverCtx: EC, event: InvokeEventa<Res, Req, ResErr, ReqErr>, fn: (payload: Req) => Promise<Res> | Res) {
   serverCtx.on(event.sendEvent, async (payload) => { // on: event_trigger
     if (!payload.body) {
       return
@@ -105,11 +111,11 @@ export function defineInvokeHandler<
 
     try {
       const response = await fn(payload.body?.content as Req) // Call the handler function with the request payload
-      serverCtx.emit(event.receiveEvent, { ...payload.body, content: response }) // emit: event_response
+      serverCtx.emit(defineEventa(`${event.receiveEvent.id}-${payload.body.invokeId}`) as ReceiveEvent<Res>, { ...payload.body, content: response }) // emit: event_response
     }
     catch (error) {
       // TODO: to error object
-      serverCtx.emit(event.receiveEventError, { ...payload.body, content: error as any }) // emit: event_response with error
+      serverCtx.emit(defineEventa(`${event.receiveEventError.id}-${payload.body.invokeId}`) as ReceiveEventError<ResErr>, { ...payload.body, content: error as any }) // emit: event_response with error
     }
   })
 }

@@ -34,29 +34,22 @@ describe('invoke', () => {
       .toThrowError('Error processing request for alice aged 25')
   })
 
-  // it.skip('should handle multiple concurrent invokes', async () => {
-  //   const serverCtx = createContext()
-  //   const clientCtx = createContext()
-  //   const events = defineEventa<{ value: number }, { result: number }>()
+  it('should handle multiple concurrent invokes', async () => {
+    const ctx = createContext()
 
-  //   defineInvokeHandler(serverCtx, events, ({ value }) => ({
-  //     result: value * 2,
-  //   }))
+    const events = defineInvokeEventa<{ result: number }, { value: number }>()
+    defineInvokeHandler(ctx, events, ({ value }) => ({ result: value * 2 }))
+    const invoke = defineInvoke(ctx, events)
 
-  //   const invoke = defineInvoke(clientCtx, events)
+    const promise1 = invoke({ value: 10 })
+    const promise2 = invoke({ value: 20 })
+    const promise3 = invoke({ value: 50 })
 
-  //   const promise1 = invoke({ value: 10 })
-  //   const promise2 = invoke({ value: 20 })
-
-  //   setTimeout(() => {
-  //     serverCtx.emit(events.outboundEvent, { result: 20 })
-  //     serverCtx.emit(events.outboundEvent, { result: 40 })
-  //   }, 0.1)
-
-  //   const [result1, result2] = await Promise.all([promise1, promise2])
-  //   expect(result1).toEqual({ result: 20 })
-  //   expect(result2).toEqual({ result: 40 })
-  // })
+    const [result1, result2, result3] = await Promise.all([promise1, promise2, promise3])
+    expect(result1).toEqual({ result: 20 })
+    expect(result2).toEqual({ result: 40 })
+    expect(result3).toEqual({ result: 100 })
+  })
 })
 
 describe('invoke-type-safety', () => {
