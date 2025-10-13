@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { createContext } from './context'
-import { defineInvoke, defineInvokeHandler } from './invoke'
+import { defineInvoke, defineInvokeHandler, undefineInvokeHandler } from './invoke'
 import { defineInvokeEventa } from './invoke-shared'
 
 describe('invoke', () => {
@@ -49,6 +49,87 @@ describe('invoke', () => {
     expect(result1).toEqual({ result: 20 })
     expect(result2).toEqual({ result: 40 })
     expect(result3).toEqual({ result: 100 })
+  })
+
+  it('should register the same handler only once', () => {
+    const ctx = createContext()
+    const events = defineInvokeEventa<void, void>()
+
+    const handler = vi.fn()
+
+    defineInvokeHandler(ctx, events, handler)
+    defineInvokeHandler(ctx, events, handler)
+
+    const invoke = defineInvoke(ctx, events)
+
+    invoke()
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it('should remove specific invoke handler via off', () => {
+    const ctx = createContext()
+    const events = defineInvokeEventa<void, void>()
+
+    const handler = vi.fn()
+    const weakHandler = vi.fn()
+
+    defineInvokeHandler(ctx, events, handler)
+    const weakOff = defineInvokeHandler(ctx, events, weakHandler)
+
+    const invoke = defineInvoke(ctx, events)
+
+    invoke()
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(weakHandler).toHaveBeenCalledTimes(1)
+
+    weakOff()
+    invoke()
+    expect(handler).toHaveBeenCalledTimes(2)
+    expect(weakHandler).toHaveBeenCalledTimes(1)
+  })
+
+  it('should remove invoke specific handler via undefineInvokeHandler', () => {
+    const ctx = createContext()
+    const events = defineInvokeEventa<void, void>()
+
+    const handler = vi.fn()
+    const weakHandler = vi.fn()
+
+    defineInvokeHandler(ctx, events, handler)
+    defineInvokeHandler(ctx, events, weakHandler)
+
+    const invoke = defineInvoke(ctx, events)
+
+    invoke()
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(weakHandler).toHaveBeenCalledTimes(1)
+
+    undefineInvokeHandler(ctx, events, weakHandler)
+    invoke()
+    expect(handler).toHaveBeenCalledTimes(2)
+    expect(weakHandler).toHaveBeenCalledTimes(1)
+  })
+
+  it('should remove invoke handlers via undefineInvokeHandler', () => {
+    const ctx = createContext()
+    const events = defineInvokeEventa<void, void>()
+
+    const handler = vi.fn()
+    const weakHandler = vi.fn()
+
+    defineInvokeHandler(ctx, events, handler)
+    defineInvokeHandler(ctx, events, weakHandler)
+
+    const invoke = defineInvoke(ctx, events)
+
+    invoke()
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(weakHandler).toHaveBeenCalledTimes(1)
+
+    undefineInvokeHandler(ctx, events)
+    invoke()
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(weakHandler).toHaveBeenCalledTimes(1)
   })
 })
 

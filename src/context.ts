@@ -22,10 +22,12 @@ export function createContext<Extensions = any, EmitOptions = any>(props: Create
 
     for (const listener of listeners.get(event.id) || []) {
       listener(emittingPayload, options)
+      hooks?.onReceived?.(event.id, emittingPayload)
     }
 
     for (const onceListener of onceListeners.get(event.id) || []) {
       onceListener(emittingPayload, options)
+      hooks?.onReceived?.(event.id, emittingPayload)
       onceListeners.get(event.id)?.delete(onceListener)
     }
 
@@ -38,9 +40,11 @@ export function createContext<Extensions = any, EmitOptions = any>(props: Create
 
         for (const listener of matchExpressionListeners.get(matchExpression.id) || []) {
           listener(emittingPayload, options)
+          hooks?.onReceived?.(matchExpression.id, emittingPayload)
         }
         for (const onceListener of matchExpressionOnceListeners.get(matchExpression.id) || []) {
           onceListener(emittingPayload, options)
+          hooks?.onReceived?.(matchExpression.id, emittingPayload)
           matchExpressionOnceListeners.get(matchExpression.id)?.delete(onceListener)
         }
       }
@@ -60,21 +64,19 @@ export function createContext<Extensions = any, EmitOptions = any>(props: Create
 
     emit,
 
-    on<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void) {
+    on<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void): () => void {
       if (eventOrMatchExpression.type === EventaType.Event) {
         const event = eventOrMatchExpression as Eventa<P>
         if (!listeners.has(event.id)) {
           listeners.set(event.id, new Set())
         }
 
-        listeners
-          .get(event.id)
-          ?.add((payload: Eventa<P>, options?: EmitOptions) => {
-            handler(payload, options)
-            hooks?.onReceived?.(event.id, payload)
-          })
+        listeners.get(event.id)?.add(handler)
+
+        return () => listeners.get(event.id)?.delete(handler)
       }
-      else if (eventOrMatchExpression.type === EventaType.MatchExpression) {
+
+      if (eventOrMatchExpression.type === EventaType.MatchExpression) {
         const matchExpression = eventOrMatchExpression as EventaMatchExpression<P>
         if (!matchExpressions.has(matchExpression.id)) {
           matchExpressions.set(matchExpression.id, matchExpression as EventaMatchExpression<P>)
@@ -83,30 +85,27 @@ export function createContext<Extensions = any, EmitOptions = any>(props: Create
           matchExpressionListeners.set(matchExpression.id, new Set())
         }
 
-        matchExpressionListeners
-          .get(matchExpression.id)
-          ?.add((payload: Eventa<P>, options?: EmitOptions) => {
-            handler(payload, options)
-            hooks?.onReceived?.(matchExpression.id, payload)
-          })
+        matchExpressionListeners.get(matchExpression.id)?.add(handler)
+
+        return () => matchExpressionListeners.get(matchExpression.id)?.delete(handler)
       }
+
+      return () => void 0
     },
 
-    once<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void) {
+    once<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void): () => void {
       if (eventOrMatchExpression.type === EventaType.Event) {
         const event = eventOrMatchExpression as Eventa<P>
         if (!onceListeners.has(event.id)) {
           onceListeners.set(event.id, new Set())
         }
 
-        onceListeners
-          .get(event.id)
-          ?.add((payload: Eventa<P>, options?: EmitOptions) => {
-            handler(payload, options)
-            hooks?.onReceived?.(event.id, payload)
-          })
+        onceListeners.get(event.id)?.add(handler)
+
+        return () => onceListeners.get(event.id)?.delete(handler)
       }
-      else if (eventOrMatchExpression.type === EventaType.MatchExpression) {
+
+      if (eventOrMatchExpression.type === EventaType.MatchExpression) {
         const matchExpression = eventOrMatchExpression as EventaMatchExpression<P>
         if (!matchExpressions.has(matchExpression.id)) {
           matchExpressions.set(matchExpression.id, matchExpression as EventaMatchExpression<P>)
@@ -115,23 +114,36 @@ export function createContext<Extensions = any, EmitOptions = any>(props: Create
           matchExpressionListeners.set(matchExpression.id, new Set())
         }
 
-        matchExpressionOnceListeners
-          .get(matchExpression.id)
-          ?.add((payload: Eventa<P>, options?: EmitOptions) => {
-            handler(payload, options)
-            hooks?.onReceived?.(matchExpression.id, payload)
-          })
+        matchExpressionOnceListeners.get(matchExpression.id)?.add(handler)
+
+        return () => matchExpressionOnceListeners.get(matchExpression.id)?.delete(handler)
       }
+
+      return () => void 0
     },
 
-    off<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>) {
-      if (eventOrMatchExpression.type === EventaType.Event) {
-        listeners.delete(eventOrMatchExpression.id)
-        onceListeners.delete(eventOrMatchExpression.id)
-      }
-      if (eventOrMatchExpression.type === EventaType.MatchExpression) {
-        matchExpressionListeners.delete(eventOrMatchExpression.id)
-        matchExpressionOnceListeners.delete(eventOrMatchExpression.id)
+    off<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler?: (payload: Eventa<P>, options?: EmitOptions) => void) {
+      switch (eventOrMatchExpression.type) {
+        case EventaType.Event:
+          if (handler !== undefined) {
+            listeners.get(eventOrMatchExpression.id)?.delete(handler)
+            onceListeners.get(eventOrMatchExpression.id)?.delete(handler)
+            break
+          }
+
+          listeners.delete(eventOrMatchExpression.id)
+          onceListeners.delete(eventOrMatchExpression.id)
+          break
+        case EventaType.MatchExpression:
+          if (handler !== undefined) {
+            matchExpressionListeners.get(eventOrMatchExpression.id)?.delete(handler)
+            matchExpressionOnceListeners.get(eventOrMatchExpression.id)?.delete(handler)
+            break
+          }
+
+          matchExpressionListeners.delete(eventOrMatchExpression.id)
+          matchExpressionOnceListeners.delete(eventOrMatchExpression.id)
+          break
       }
     },
   }
@@ -142,9 +154,9 @@ export interface EventContext<Extensions = any, EmitOptions = undefined> {
   onceListeners: Map<EventTag<any, any>, Set<(params: any) => any>>
 
   emit: <P>(event: Eventa<P>, payload: P, options?: EmitOptions) => void
-  on: <P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void) => void
-  once: <P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void) => void
-  off: <P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>) => void
+  on: <P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void) => () => void
+  once: <P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void) => () => void
+  off: <P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler?: (payload: Eventa<P>, options?: EmitOptions) => void) => void
 
   /**
    * Extensions
