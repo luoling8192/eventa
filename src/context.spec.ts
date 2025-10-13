@@ -15,6 +15,20 @@ describe('eventContext', () => {
     expect(handler).toHaveBeenCalledWith({ ...testEvent, body: { data: 'test' } }, undefined)
   })
 
+  it('should register the same handler only once', () => {
+    const ctx = createContext()
+    const testEvent = defineEventa('test-event')
+
+    const handler = vi.fn()
+
+    ctx.on(testEvent, handler)
+    ctx.on(testEvent, handler)
+    ctx.emit(testEvent, { data: 'test' })
+
+    expect(handler).toHaveBeenCalledWith({ ...testEvent, body: { data: 'test' } }, undefined)
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
   it('should handle once listeners', () => {
     const ctx = createContext()
     const testEvent = defineEventa('test-event')
@@ -38,5 +52,59 @@ describe('eventContext', () => {
     ctx.emit(testEvent, { data: 'test' })
 
     expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('should remove listeners with returned off', () => {
+    const ctx = createContext()
+    const testEvent = defineEventa('test-event')
+    const handler = vi.fn()
+
+    const off = ctx.on(testEvent, handler)
+    off()
+    ctx.emit(testEvent, { data: 'test' })
+
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('should remove specific listener with off', () => {
+    const ctx = createContext()
+    const testEvent = defineEventa('test-event')
+
+    const handler = vi.fn()
+    const weakHandler = vi.fn()
+
+    ctx.on(testEvent, handler)
+    ctx.on(testEvent, weakHandler)
+
+    ctx.emit(testEvent, { data: 'test' })
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(weakHandler).toHaveBeenCalledTimes(1)
+
+    ctx.off(testEvent, weakHandler)
+
+    ctx.emit(testEvent, { data: 'test' })
+    expect(handler).toHaveBeenCalledTimes(2)
+    expect(weakHandler).toHaveBeenCalledTimes(1)
+  })
+
+  it('should remove specific listener with returned off', () => {
+    const ctx = createContext()
+    const testEvent = defineEventa('test-event')
+
+    const handler = vi.fn()
+    const weakHandler = vi.fn()
+
+    ctx.on(testEvent, handler)
+    const weakOff = ctx.on(testEvent, weakHandler)
+
+    ctx.emit(testEvent, { data: 'test' })
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(weakHandler).toHaveBeenCalledTimes(1)
+
+    weakOff()
+
+    ctx.emit(testEvent, { data: 'test' })
+    expect(handler).toHaveBeenCalledTimes(2)
+    expect(weakHandler).toHaveBeenCalledTimes(1)
   })
 })
