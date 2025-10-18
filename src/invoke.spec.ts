@@ -151,7 +151,7 @@ describe('invoke', () => {
     } = defineInvokes(ctx, events)
 
     expect(await invokeDouble(5)).toEqual(10)
-    expect(await invokeAppend('test')).toEqual({ output: 'test!' })
+    expect(await invokeAppend('test')).toEqual('test!')
   })
 })
 
