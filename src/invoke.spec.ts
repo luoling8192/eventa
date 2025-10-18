@@ -5,15 +5,29 @@ import { defineInvoke, defineInvokeHandler, undefineInvokeHandler } from './invo
 import { defineInvokeEventa } from './invoke-shared'
 
 describe('invoke', () => {
+  it('should reject when no invoke handler is defined', async () => {
+    const ctx = createContext()
+    const event = defineInvokeEventa<void, void>('lonely-event')
+    const invoke = defineInvoke(ctx, event)
+
+    await expect(() => invoke()).rejects.toThrowError(`No invoke handler for invoke event 'lonely-event'`)
+
+    const handler = vi.fn()
+    defineInvokeHandler(ctx, event, handler)
+
+    await invoke()
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
   it('should handle request-response pattern', async () => {
     const ctx = createContext()
-    const events = defineInvokeEventa<{ id: string }, { name: string, age: number }>()
+    const event = defineInvokeEventa<{ id: string }, { name: string, age: number }>()
 
-    defineInvokeHandler(ctx, events, ({ name, age }) => ({
+    defineInvokeHandler(ctx, event, ({ name, age }) => ({
       id: `${name}-${age}`,
     }))
 
-    const invoke = defineInvoke(ctx, events)
+    const invoke = defineInvoke(ctx, event)
 
     const result = await invoke({ name: 'alice', age: 25 })
     expect(result).toEqual({ id: 'alice-25' })
@@ -21,13 +35,13 @@ describe('invoke', () => {
 
   it('should handle request-response pattern with error', async () => {
     const ctx = createContext()
-    const events = defineInvokeEventa<{ id: string }, { name: string, age: number }>()
+    const event = defineInvokeEventa<{ id: string }, { name: string, age: number }>()
 
-    defineInvokeHandler(ctx, events, ({ name, age }) => {
+    defineInvokeHandler(ctx, event, ({ name, age }) => {
       throw new Error(`Error processing request for ${name} aged ${age}`)
     })
 
-    const invoke = defineInvoke(ctx, events)
+    const invoke = defineInvoke(ctx, event)
 
     await expect(() => invoke({ name: 'alice', age: 25 }))
       .rejects
@@ -37,9 +51,9 @@ describe('invoke', () => {
   it('should handle multiple concurrent invokes', async () => {
     const ctx = createContext()
 
-    const events = defineInvokeEventa<{ result: number }, { value: number }>()
-    defineInvokeHandler(ctx, events, ({ value }) => ({ result: value * 2 }))
-    const invoke = defineInvoke(ctx, events)
+    const event = defineInvokeEventa<{ result: number }, { value: number }>()
+    defineInvokeHandler(ctx, event, ({ value }) => ({ result: value * 2 }))
+    const invoke = defineInvoke(ctx, event)
 
     const promise1 = invoke({ value: 10 })
     const promise2 = invoke({ value: 20 })
@@ -51,83 +65,83 @@ describe('invoke', () => {
     expect(result3).toEqual({ result: 100 })
   })
 
-  it('should register the same handler only once', () => {
+  it('should register the same handler only once', async () => {
     const ctx = createContext()
-    const events = defineInvokeEventa<void, void>()
+    const event = defineInvokeEventa<void, void>()
 
     const handler = vi.fn()
 
-    defineInvokeHandler(ctx, events, handler)
-    defineInvokeHandler(ctx, events, handler)
+    defineInvokeHandler(ctx, event, handler)
+    defineInvokeHandler(ctx, event, handler)
 
-    const invoke = defineInvoke(ctx, events)
+    const invoke = defineInvoke(ctx, event)
 
-    invoke()
+    await invoke()
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
-  it('should remove specific invoke handler via off', () => {
+  it('should remove specific invoke handler via off', async () => {
     const ctx = createContext()
-    const events = defineInvokeEventa<void, void>()
+    const event = defineInvokeEventa<void, void>()
 
     const handler = vi.fn()
     const weakHandler = vi.fn()
 
-    defineInvokeHandler(ctx, events, handler)
-    const weakOff = defineInvokeHandler(ctx, events, weakHandler)
+    defineInvokeHandler(ctx, event, handler)
+    const weakOff = defineInvokeHandler(ctx, event, weakHandler)
 
-    const invoke = defineInvoke(ctx, events)
+    const invoke = defineInvoke(ctx, event)
 
-    invoke()
+    await invoke()
     expect(handler).toHaveBeenCalledTimes(1)
     expect(weakHandler).toHaveBeenCalledTimes(1)
 
     weakOff()
-    invoke()
+    await invoke()
     expect(handler).toHaveBeenCalledTimes(2)
     expect(weakHandler).toHaveBeenCalledTimes(1)
   })
 
-  it('should remove invoke specific handler via undefineInvokeHandler', () => {
+  it('should remove invoke specific handler via undefineInvokeHandler', async () => {
     const ctx = createContext()
-    const events = defineInvokeEventa<void, void>()
+    const event = defineInvokeEventa<void, void>()
 
     const handler = vi.fn()
     const weakHandler = vi.fn()
 
-    defineInvokeHandler(ctx, events, handler)
-    defineInvokeHandler(ctx, events, weakHandler)
+    defineInvokeHandler(ctx, event, handler)
+    defineInvokeHandler(ctx, event, weakHandler)
 
-    const invoke = defineInvoke(ctx, events)
+    const invoke = defineInvoke(ctx, event)
 
-    invoke()
+    await invoke()
     expect(handler).toHaveBeenCalledTimes(1)
     expect(weakHandler).toHaveBeenCalledTimes(1)
 
-    undefineInvokeHandler(ctx, events, weakHandler)
-    invoke()
+    undefineInvokeHandler(ctx, event, weakHandler)
+    await invoke()
     expect(handler).toHaveBeenCalledTimes(2)
     expect(weakHandler).toHaveBeenCalledTimes(1)
   })
 
-  it('should remove invoke handlers via undefineInvokeHandler', () => {
+  it('should remove invoke handlers via undefineInvokeHandler', async () => {
     const ctx = createContext()
-    const events = defineInvokeEventa<void, void>()
+    const event = defineInvokeEventa<void, void>()
 
     const handler = vi.fn()
     const weakHandler = vi.fn()
 
-    defineInvokeHandler(ctx, events, handler)
-    defineInvokeHandler(ctx, events, weakHandler)
+    defineInvokeHandler(ctx, event, handler)
+    defineInvokeHandler(ctx, event, weakHandler)
 
-    const invoke = defineInvoke(ctx, events)
+    const invoke = defineInvoke(ctx, event)
 
-    invoke()
+    await invoke()
     expect(handler).toHaveBeenCalledTimes(1)
     expect(weakHandler).toHaveBeenCalledTimes(1)
 
-    undefineInvokeHandler(ctx, events)
-    invoke()
+    undefineInvokeHandler(ctx, event)
+    await expect(() => invoke()).rejects.toThrowError(`No invoke handler for invoke event '${event.tag}'`)
     expect(handler).toHaveBeenCalledTimes(1)
     expect(weakHandler).toHaveBeenCalledTimes(1)
   })

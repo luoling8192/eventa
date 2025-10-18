@@ -25,6 +25,17 @@ interface InvocableEventContext<Res, Req, ResErr, ReqErr, E, EO> extends EventCo
   invokeHandlers?: Map<string, Map<(payload: Req) => Promise<Res> | Res, (params: InvokeEventa<Res, Req, ResErr, ReqErr>['sendEvent'], eventOptions?: EO) => void>>
 }
 
+/**
+ * Error thrown when no invoke handler is defined for an invoke event.
+ */
+export class EventaNoInvokeHandlerError extends Error {
+  constructor(public event: InvokeEventa<any, any, any, any>) {
+    super(`No invoke handler for invoke event '${event.tag}'`)
+    this.name = 'EventaNoInvokeHandlerError'
+    Object.setPrototypeOf(this, EventaNoInvokeHandlerError.prototype)
+  }
+}
+
 export function defineInvoke<
   Res,
   Req = undefined,
@@ -80,7 +91,14 @@ export function defineInvoke<
         clientCtx.off(invokeReceiveEventError)
       })
 
-      clientCtx.emit(event.sendEvent, { invokeId, content: req }, options as any) // emit: event_trigger
+      const icConsumed = clientCtx.emit(event.sendEvent, { invokeId, content: req }, options as any) // emit: event_trigger
+      if (!icConsumed) {
+        mInvokeIdPromiseRejectors.get(invokeId)?.(new EventaNoInvokeHandlerError(event))
+        mInvokeIdPromiseRejectors.delete(invokeId)
+        mInvokeIdPromiseResolvers.delete(invokeId)
+        clientCtx.off(invokeReceiveEvent)
+        clientCtx.off(invokeReceiveEventError)
+      }
     })
   }
 
