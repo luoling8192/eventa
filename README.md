@@ -148,6 +148,30 @@ for await (const update of stream) {
 
 Both generator-style and imperative handlers are exercised in `src/stream.spec.ts:7`.
 
+### Shorthands for `defineInvokeHandler` and `defineInvoke`
+
+When you have multiple invoke events to register handlers for, or to create invoke functions for, you can use `defineInvokeHandlers` and `defineInvokes` to do so in bulk.
+
+```ts
+const events = {
+  double: defineInvokeEventa<number, number>(),
+  append: defineInvokeEventa<string, string>(),
+}
+
+defineInvokeHandlers(ctx, events, {
+  double: input => input * 2,
+  append: input => `${input}!`,
+})
+
+const {
+  double: invokeDouble,
+  append: invokeAppend,
+} = defineInvokes(ctx, events)
+
+await invokeDouble(5) // 10
+await invokeAppend('test') // 'test!'
+```
+
 ## Development
 
 ```sh

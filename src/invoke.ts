@@ -21,8 +21,35 @@ type ExtractInvokeRequest<EC extends EventContext<any, any>>
         : undefined
     : undefined
 
-interface InvocableEventContext<Res, Req, ResErr, ReqErr, E, EO> extends EventContext<E, EO> {
-  invokeHandlers?: Map<string, Map<(payload: Req) => Promise<Res> | Res, (params: InvokeEventa<Res, Req, ResErr, ReqErr>['sendEvent'], eventOptions?: EO) => void>>
+type InvokeFunction<Res, Req, EC extends EventContext<any, any>>
+  = Req extends undefined
+    ? IsInvokeRequestOptional<EC> extends true
+      ? (req?: Req, invokeRequest?: ExtractInvokeRequest<EC>) => Promise<Res>
+      : (req: Req, invokeRequest: ExtractInvokeRequest<EC>) => Promise<Res>
+    : IsInvokeRequestOptional<EC> extends true
+      ? (req: Req, invokeRequest?: ExtractInvokeRequest<EC>) => Promise<Res>
+      : (req: Req, invokeRequest: ExtractInvokeRequest<EC>) => Promise<Res>
+
+type InvokeFunctionMap<EventMap extends Record<string, InvokeEventa<any, any, any, any>>, EC extends EventContext<any, any>> = {
+  [K in keyof EventMap]: EventMap[K] extends InvokeEventa<infer Res, infer Req, any, any> ? InvokeFunction<Res, Req, EC> : never
+}
+
+type Handler<Res, Req = any> = (payload: Req) => Promise<Res> | Res
+
+type InternalInvokeHandler<
+  Res,
+  Req = any,
+  ResErr = Error,
+  ReqErr = Error,
+  EO = any,
+> = (params: InvokeEventa<Res, Req, ResErr, ReqErr>['sendEvent'], eventOptions?: EO) => void
+
+type HandlerMap<EventMap extends Record<string, InvokeEventa<any, any, any, any>>> = {
+  [K in keyof EventMap]: EventMap[K] extends InvokeEventa<infer Res, infer Req, any, any> ? Handler<Res, Req> : never
+}
+
+interface InvocableEventContext<E, EO> extends EventContext<E, EO> {
+  invokeHandlers?: Map<string, Map<Handler<any>, InternalInvokeHandler<any>>>
 }
 
 export function defineInvoke<
@@ -33,13 +60,11 @@ export function defineInvoke<
   E = any,
   EO = any,
   EC extends EventContext<E, EO> = EventContext<E, EO>,
->(clientCtx: EC, event: InvokeEventa<Res, Req, ResErr, ReqErr>) {
+>(clientCtx: EC, event: InvokeEventa<Res, Req, ResErr, ReqErr>): InvokeFunction<Res, Req, EC> {
   const mInvokeIdPromiseResolvers = new Map<string, (value: Res | PromiseLike<Res>) => void>()
   const mInvokeIdPromiseRejectors = new Map<string, (err?: any) => void>()
 
-  type InvokeRequestType = ExtractInvokeRequest<EC>
-
-  function _invoke(req: Req, options?: { invokeRequest?: InvokeRequestType }): Promise<Res> {
+  function _invoke(req: Req, options?: { invokeRequest?: ExtractInvokeRequest<EC> }): Promise<Res> {
     return new Promise<Res>((resolve, reject) => {
       const invokeId = nanoid()
       mInvokeIdPromiseResolvers.set(invokeId, resolve)
@@ -84,16 +109,20 @@ export function defineInvoke<
     })
   }
 
-  type InvokeFunction
-    = Req extends undefined
-      ? IsInvokeRequestOptional<EC> extends true
-        ? (req?: Req, invokeRequest?: InvokeRequestType) => Promise<Res>
-        : (req: Req, invokeRequest: InvokeRequestType) => Promise<Res>
-      : IsInvokeRequestOptional<EC> extends true
-        ? (req: Req, invokeRequest?: InvokeRequestType) => Promise<Res>
-        : (req: Req, invokeRequest: InvokeRequestType) => Promise<Res>
+  return _invoke as InvokeFunction<Res, Req, EC>
+}
 
-  return _invoke as InvokeFunction
+export function defineInvokes<
+  EK extends string,
+  EventMap extends Record<EK, InvokeEventa<any, any, any, any>>,
+  E = any,
+  EO = any,
+  EC extends EventContext<E, EO> = EventContext<E, EO>,
+>(clientCtx: EC, events: EventMap): InvokeFunctionMap<EventMap, EC> {
+  return (Object.keys(events) as EK[]).reduce((invokes, key) => {
+    invokes[key] = defineInvoke(clientCtx, events[key])
+    return invokes
+  }, {} as Record<EK, InvokeFunction<any, any, EC>>) as InvokeFunctionMap<EventMap, EC>
 }
 
 /**
@@ -111,7 +140,7 @@ export function defineInvokeHandler<
   ReqErr = Error,
   E = any,
   EO = any,
->(serverCtx: InvocableEventContext<Res, Req, ResErr, ReqErr, E, EO>, event: InvokeEventa<Res, Req, ResErr, ReqErr>, handler: (payload: Req) => Promise<Res> | Res): () => void {
+>(serverCtx: InvocableEventContext<E, EO>, event: InvokeEventa<Res, Req, ResErr, ReqErr>, handler: Handler<Res, Req>): () => void {
   if (!serverCtx.invokeHandlers) {
     serverCtx.invokeHandlers = new Map()
   }
@@ -122,7 +151,7 @@ export function defineInvokeHandler<
     serverCtx.invokeHandlers?.set(event.sendEvent.id, handlers)
   }
 
-  let internalHandler = handlers.get(handler)
+  let internalHandler = handlers.get(handler) as InternalInvokeHandler<Res, Req, ResErr, ReqErr> | undefined
   if (!internalHandler) {
     internalHandler = async (payload) => { // on: event_trigger
       if (!payload.body) {
@@ -148,6 +177,25 @@ export function defineInvokeHandler<
   return () => serverCtx.off(event.sendEvent, internalHandler)
 }
 
+export function defineInvokeHandlers<
+  EK extends string,
+  EventMap extends Record<EK, InvokeEventa<any, any, any, any>>,
+  E = any,
+  EO = any,
+>(serverCtx: InvocableEventContext<E, EO>, events: EventMap, handlers: HandlerMap<EventMap>): Record<EK, () => void> {
+  const eventKeys = Object.keys(events) as EK[]
+  const handlerKeys = new Set(Object.keys(handlers) as EK[])
+
+  if (eventKeys.length !== handlerKeys.size || !eventKeys.every(key => handlerKeys.has(key))) {
+    throw new Error('The keys of events and handlers must match.')
+  }
+
+  return eventKeys.reduce((returnValues, key) => {
+    returnValues[key] = defineInvokeHandler(serverCtx, events[key], handlers[key])
+    return returnValues
+  }, {} as Record<EK, () => void>)
+}
+
 /**
  * Remove one or all invoke handlers for a specific invoke event.
  *
@@ -163,7 +211,7 @@ export function undefineInvokeHandler<
   ReqErr = Error,
   E = any,
   EO = any,
->(serverCtx: InvocableEventContext<Res, Req, ResErr, ReqErr, E, EO>, event: InvokeEventa<Res, Req, ResErr, ReqErr>, handler?: (payload: Req) => Promise<Res> | Res): boolean {
+>(serverCtx: InvocableEventContext<E, EO>, event: InvokeEventa<Res, Req, ResErr, ReqErr>, handler?: Handler<Res, Req>): boolean {
   if (!serverCtx.invokeHandlers)
     return false
 
