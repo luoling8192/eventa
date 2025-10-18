@@ -32,6 +32,7 @@ export interface ReceiveEventStreamEnd<Res, Req = undefined, _ = undefined, __ =
 }
 
 export interface InvokeEventa<Res, Req = undefined, ResErr = Error, ReqErr = Error> {
+  tag: string
   sendEvent: SendEvent<Res, Req, ResErr, ReqErr>
   sendEventError: SendEventError<Res, Req, ResErr, ReqErr>
   receiveEvent: ReceiveEvent<Res, Req, ResErr, ReqErr>
@@ -66,6 +67,7 @@ export function defineInvokeEventa<Res, Req = undefined, ResErr = Error, ReqErr 
   } as ReceiveEventStreamEnd<Res, Req, ResErr, ReqErr>
 
   return {
+    tag,
     sendEvent,
     sendEventError,
     receiveEvent,

@@ -52,6 +52,17 @@ interface InvocableEventContext<E, EO> extends EventContext<E, EO> {
   invokeHandlers?: Map<string, Map<Handler<any>, InternalInvokeHandler<any>>>
 }
 
+/**
+ * Error thrown when no invoke handler is defined for an invoke event.
+ */
+export class EventaNoInvokeHandlerError extends Error {
+  constructor(public event: InvokeEventa<any, any, any, any>) {
+    super(`No invoke handler for invoke event '${event.tag}'`)
+    this.name = 'EventaNoInvokeHandlerError'
+    Object.setPrototypeOf(this, EventaNoInvokeHandlerError.prototype)
+  }
+}
+
 export function defineInvoke<
   Res,
   Req = undefined,
@@ -105,7 +116,14 @@ export function defineInvoke<
         clientCtx.off(invokeReceiveEventError)
       })
 
-      clientCtx.emit(event.sendEvent, { invokeId, content: req }, options as any) // emit: event_trigger
+      const icConsumed = clientCtx.emit(event.sendEvent, { invokeId, content: req }, options as any) // emit: event_trigger
+      if (!icConsumed) {
+        mInvokeIdPromiseRejectors.get(invokeId)?.(new EventaNoInvokeHandlerError(event))
+        mInvokeIdPromiseRejectors.delete(invokeId)
+        mInvokeIdPromiseResolvers.delete(invokeId)
+        clientCtx.off(invokeReceiveEvent)
+        clientCtx.off(invokeReceiveEventError)
+      }
     })
   }
 
