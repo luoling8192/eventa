@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { createContext } from './context'
-import { defineInvoke, defineInvokeHandler, undefineInvokeHandler } from './invoke'
+import { defineInvoke, defineInvokeHandler, defineInvokeHandlers, defineInvokes, undefineInvokeHandler } from './invoke'
 import { defineInvokeEventa } from './invoke-shared'
 
 describe('invoke', () => {
@@ -130,6 +130,28 @@ describe('invoke', () => {
     invoke()
     expect(handler).toHaveBeenCalledTimes(1)
     expect(weakHandler).toHaveBeenCalledTimes(1)
+  })
+
+  it('should define invoke handlers in batch', async () => {
+    const ctx = createContext()
+
+    const events = {
+      double: defineInvokeEventa<number, number>(),
+      append: defineInvokeEventa<string, string>(),
+    }
+
+    defineInvokeHandlers(ctx, events, {
+      double: input => input * 2,
+      append: input => `${input}!`,
+    })
+
+    const {
+      double: invokeDouble,
+      append: invokeAppend,
+    } = defineInvokes(ctx, events)
+
+    expect(await invokeDouble(5)).toEqual(10)
+    expect(await invokeAppend('test')).toEqual('test!')
   })
 })
 
