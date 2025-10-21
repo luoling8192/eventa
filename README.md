@@ -1,5 +1,11 @@
 # `eventa`
 
+[![npm version][npm-version-src]][npm-version-href]
+[![npm downloads][npm-downloads-src]][npm-downloads-href]
+[![bundle][bundle-src]][bundle-href]
+[![JSDocs][jsdocs-src]][jsdocs-href]
+[![License][license-src]][license-href]
+
 Transport-aware events powering ergonomic RPC and streaming flows.
 
 > Heavily inspired by pragmatic RPC flows, but centred on pure events so transports stay swappable.
@@ -46,7 +52,7 @@ Events can be seen as packets transferring in networks, so we can use pure event
 - `defineInvokeEventa`: define types of RPC/Stream RPC
 - `defineInvoke`: this produce a `function` returns `Promise` for your RPC call to be used later, you can store and use it everywhere you want
 - `defineInvokeHandler`: similar to how Nuxt, h3 defines their handler, we use `defineInvokeHandler` to hook a auto
-- `defineInvokeStreamHandler`: similar to gRPC, when one RPC invocation produces not only one response, but multiple intermediate events, you may want to use it
+- `defineStreamInvokeHandler`: similar to gRPC, when one RPC invocation produces not only one response, but multiple intermediate events, you may want to use it
 
 #### Simple Example
 
@@ -63,151 +69,134 @@ const someMethod = defineInvoke(ctx, someMethodDefine)
 console.log(await someMethod(42)) // => { output: '42' }
 ```
 
-#### WebSocket Example
-
-If you are curious more, let's make one for WebSocket, first, create a shared file to contain the client & server side definition:
-
-```ts
-import { defineInvokeEventa } from '@unbird/eventa'
-
-// create and export the RPC definition
-export const createChatEventa = defineInvokeEventa<{ created: boolean }, { chatName: string }>('eventa:invoke:chat:new')
-```
-
-For **Server** side:
-
-```ts
-import { defineInvoke, defineInvokeHandler } from '@unbird/eventa'
-import { createContext } from '@unbird/eventa/adapters/websocket/h3' // we support h3 by default, you can implement whatever you want, it's simple
-
-import { createChatEventa } from '../shared'
-
-const app = new H3()
-
-const { untilLeastOneConnected, hooks } = createPeerHooks()
-app.get('/ws', defineWebSocketHandler(hooks))
-
-const { context } = await untilLeastOneConnected
-defineInvokeHandler(context, createChatEventa, ({ chatName }) => {
-  // you can safely throw any error you want, you can even make the error type safe when using `defineInvoke`
-  return { created: true }
-})
-```
-
-in **Client side**:
-
-```ts
-import { defineInvoke, defineInvokeEventa } from '@unbird/eventa'
-import { createContext } from '@unbird/eventa/adapters/websocket/native' // we use WebSocket here for demonstration
-
-import { createChatEventa } from '../shared'
-
-const socket = new WebSocket('wss://example.com/ws') // you can use whatever method you want to construct a WebSocket instance
-const { context } = createWsContext(socket) // simply supply it, and the context is here
-
-const createChat = defineInvoke(context, createChatEventa)
-
-// now calling `createChat` will directly trigger the defineInvokeHandler
-console.log(await createChat()) // => { created: true }
-```
+### Adapters
 
 Eventa comes with various adapters for common use scenarios across browsers and Node.js, escalating the event orchestration in Electron, Web Workers, and WebSockets, etc.
 
-### Adapters
+<details>
+  <summary>Electron</summary>
 
-#### Electron
+  1. Create a shared events module:
+      ```ts
+      import { defineInvokeEventa } from '@unbird/eventa'
 
-1. Create a shared events module:
-   ```ts
-   import { defineInvokeEventa } from '@unbird/eventa'
+      export const readdir = defineInvokeEventa<{ directories: string[] }, { cwd: string, target: string }>('rpc:node:fs/promise:readdir')
+      ```
 
-   export const readdir = defineInvokeEventa<{ directories: string[] }, { cwd: string, target: string }>('rpc:node:fs/promise:readdir')
-   ```
+  2. In the main process, bridge the adapter to `ipcMain` and your `BrowserWindow` instance:
+     ```ts
+     import { createContext as createMainContext } from '@unbird/eventa/adapters/electron/main'
+     import { app, BrowserWindow, ipcMain } from 'electron'
 
-2. In the main process, bridge the adapter to `ipcMain` and your `BrowserWindow` instance:
-   ```ts
-   import { createContext as createMainContext } from '@unbird/eventa/adapters/electron/main'
-   import { app, BrowserWindow, ipcMain } from 'electron'
+     import { readdir } from './events/readdir'
 
-   import { readdir } from './events/readdir'
-
-   app.on('ready', () => {
-     // ... other code
-     const { context: mainCtx } = createMainContext(ipcMain, mainWindow.webContents)
-     defineInvokeHandler(mainCtx, readdir, async ({ cwd, target }) => {
-       const fs = await import('node:fs/promises')
-       const path = await import('node:path')
-       const fullPath = path.resolve(cwd, target)
-       const directories = await fs.readdir(fullPath, { withFileTypes: true })
-       return { directories: directories.filter(dirent => dirent.isDirectory()).map(dirent => dirent.name) }
+     app.on('ready', () => {
+       // ... other code
+       const { context: mainCtx } = createMainContext(ipcMain, mainWindow.webContents)
+       defineInvokeHandler(mainCtx, readdir, async ({ cwd, target }) => {
+         const fs = await import('node:fs/promises')
+         const path = await import('node:path')
+         const fullPath = path.resolve(cwd, target)
+         const directories = await fs.readdir(fullPath, { withFileTypes: true })
+         return { directories: directories.filter(dirent => dirent.isDirectory()).map(dirent => dirent.name) }
+       })
      })
-   })
-   ```
-3. In the renderer (not restricted to preload scripts, but recommended), bridge to `ipcRenderer` and expose a safe API:
-   ```ts
-   import { createContext as createRendererContext } from '@unbird/eventa/adapters/electron/renderer'
-   import { contextBridge, ipcRenderer } from 'electron'
+     ```
+  3. In the renderer (not restricted to preload scripts, but recommended), bridge to `ipcRenderer` and expose a safe API:
+     ```ts
+     import { createContext as createRendererContext } from '@unbird/eventa/adapters/electron/renderer'
+     import { contextBridge, ipcRenderer } from 'electron'
 
-   import { defineInvoke, readdir } from './events/readdir'
+     import { defineInvoke, readdir } from './events/readdir'
 
-   const { context: rendererCtx } = createRendererContext(ipcRenderer)
-   const invokeReaddir = defineInvoke(rendererCtx, readdir)
+     const { context: rendererCtx } = createRendererContext(ipcRenderer)
+     const invokeReaddir = defineInvoke(rendererCtx, readdir)
 
-   document.addEventListener('DOMContentLoaded', () => {
-     invokeReaddir({ cwd: '/', target: 'usr' }).then((result) => {
-       console.log('directories', result.directories)
+     document.addEventListener('DOMContentLoaded', () => {
+       invokeReaddir({ cwd: '/', target: 'usr' }).then((result) => {
+         console.log('directories', result.directories)
+       })
      })
-   })
-   ```
-4. The main and renderer contexts now share the invoke pipeline used throughout the examples in `src/adapters/electron/*.test.ts`.
+     ```
+  4. The main and renderer contexts now share the invoke pipeline used throughout the examples in `src/adapters/electron/*.test.ts`.
 
-#### Web Workers
+</details>
 
-1. Spawn the worker and wrap it with the main-thread adapter:
-   ```ts
-   import Worker from 'web-worker'
+<details>
+  <summary>Web Worker</summary>
 
-   import { createContext, defineInvoke, defineInvokeEventa } from '@unbird/eventa/adapters/webworkers'
+  1. Spawn the worker and wrap it with the main-thread adapter:
+      ```ts
+      import Worker from 'web-worker'
 
-   const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' })
-   const { context: mainCtx } = createContext(worker)
+      import { createContext, defineInvoke, defineInvokeEventa } from '@unbird/eventa/adapters/webworkers'
 
-   export const syncEvents = defineInvokeEventa<{ status: string }, { jobId: string }>('worker:sync')
-   export const invokeSync = defineInvoke(mainCtx, syncEvents)
-   ```
-2. Inside the worker entry, create the worker context and register handlers:
-   ```ts
-   import { defineInvokeHandler } from '@unbird/eventa'
-   import { createContext } from '@unbird/eventa/adapters/webworkers/worker'
+      const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' })
+      const { context: mainCtx } = createContext(worker)
 
-   import { syncEvents } from '../sync'
+      export const syncEvents = defineInvokeEventa<{ status: string }, { jobId: string }>('worker:sync')
+      export const invokeSync = defineInvoke(mainCtx, syncEvents)
+      ```
+  2. Inside the worker entry, create the worker context and register handlers:
+     ```ts
+     import { defineInvokeHandler } from '@unbird/eventa'
+     import { createContext } from '@unbird/eventa/adapters/webworkers/worker'
 
-   const { context: workerCtx } = createContext()
-   defineInvokeHandler(workerCtx, syncEvents, ({ jobId }) => ({ status: `synced ${jobId}` }))
-   ```
-3. The same pattern works for streaming handlers and for sending transferrable(s) by switching to `defineStreamInvoke` or `defineOutboundWorkerEventa` as shown in `src/adapters/webworkers/index.spec.ts`.
+     import { syncEvents } from '../sync'
 
-#### WebSocket (Browser client)
+     const { context: workerCtx } = createContext()
+     defineInvokeHandler(workerCtx, syncEvents, ({ jobId }) => ({ status: `synced ${jobId}` }))
+     ```
+  3. The same pattern works for streaming handlers and for sending transferrable(s) by switching to `defineStreamInvoke` or `defineOutboundWorkerEventa` as shown in `src/adapters/webworkers/index.spec.ts`.
 
-1. Open a `WebSocket` and wrap it with the native adapter:
-   ```ts
-   import { defineInvoke, defineInvokeEventa } from '@unbird/eventa'
-   import { createContext as createWsContext } from '@unbird/eventa/adapters/websocket/native'
+</details>
 
-   const socket = new WebSocket('wss://example.com/ws')
-   const { context: wsCtx } = createWsContext(socket)
+<details>
+  <summary>WebSocket (Client)</summary>
 
-   const chatEvents = defineInvokeEventa<{ message: string }, { text: string }>('chat:send')
-   export const sendChat = defineInvoke(wsCtx, chatEvents)
-   ```
-2. Listen for connection lifecycle events to update UI state or retry logic:
-   ```ts
-   import { wsConnectedEvent, wsDisconnectedEvent } from '@unbird/eventa/adapters/websocket/native'
+  1. Open a `WebSocket` and wrap it with the native adapter:
+      ```ts
+      import { defineInvoke, defineInvokeEventa } from '@unbird/eventa'
+      import { createContext as createWsContext } from '@unbird/eventa/adapters/websocket/native'
 
-   wsCtx.on(wsConnectedEvent, () => console.log('connected'))
-   wsCtx.on(wsDisconnectedEvent, () => console.log('disconnected'))
-   ```
-3. Pair the client with either the H3 global or peer adapter on the server for a full RPC channel (`src/adapters/websocket/h3/*.test.ts`).
+      const socket = new WebSocket('wss://example.com/ws')
+      const { context: wsCtx } = createWsContext(socket)
+
+      const chatEvents = defineInvokeEventa<{ message: string }, { text: string }>('chat:send')
+      export const sendChat = defineInvoke(wsCtx, chatEvents)
+      ```
+  2. Listen for connection lifecycle events to update UI state or retry logic:
+     ```ts
+     import { wsConnectedEvent, wsDisconnectedEvent } from '@unbird/eventa/adapters/websocket/native'
+
+     wsCtx.on(wsConnectedEvent, () => console.log('connected'))
+     wsCtx.on(wsDisconnectedEvent, () => console.log('disconnected'))
+     ```
+  3. Pair the client with either the H3 global or peer adapter on the server for a full RPC channel (`src/adapters/websocket/h3/*.test.ts`).
+
+</details>
+
+<details>
+  <summary>WebSocket (Server with H3)</summary>
+
+  ```ts
+  import { defineInvoke, defineInvokeHandler } from '@unbird/eventa'
+  // we support h3 by default, you can implement whatever you want, it's simple
+  import { createContext } from '@unbird/eventa/adapters/websocket/h3'
+
+  const chatEvents = defineInvokeEventa<{ message: string }, { text: string }>('chat:send')
+
+  const app = new H3()
+  const { untilLeastOneConnected, hooks } = createPeerHooks()
+  app.get('/ws', defineWebSocketHandler(hooks))
+
+  const { context } = await untilLeastOneConnected
+  defineInvokeHandler(context, chatEvents, ({ text: string }) => {
+    // you can safely throw any error you want, you can even make the error type safe when using `defineInvoke`
+    return { message: `Echo: ${text}` }
+  })
+  ```
+</details>
 
 ### Advanced Usage
 
@@ -234,8 +223,8 @@ defineStreamInvokeHandler(ctx, syncEvents, toStreamHandler(async ({ payload, emi
   emit({ type: 'result', value: 100 })
 }))
 
-const stream = defineStreamInvoke(ctx, syncEvents)({ jobId: 'import' })
-for await (const update of stream) {
+const sync = defineStreamInvoke(ctx, syncEvents)
+for await (const update of sync({ jobId: 'import' })) {
   console.log(update.type, update.value)
 }
 ```
@@ -284,3 +273,14 @@ pnpm test
 ## License
 
 MIT
+
+[npm-version-src]: https://img.shields.io/npm/v/@unbird/eventa?style=flat&colorA=080f12&colorB=1fa669
+[npm-version-href]: https://npmjs.com/package/@unbird/eventa
+[npm-downloads-src]: https://img.shields.io/npm/dm/@unbird/eventa?style=flat&colorA=080f12&colorB=1fa669
+[npm-downloads-href]: https://npmjs.com/package/@unbird/eventa
+[bundle-src]: https://img.shields.io/bundlephobia/minzip/@unbird/eventa?style=flat&colorA=080f12&colorB=1fa669&label=minzip
+[bundle-href]: https://bundlephobia.com/result?p=@unbird/eventa
+[license-src]: https://img.shields.io/github/license/moeru-ai/eventa.svg?style=flat&colorA=080f12&colorB=1fa669
+[license-href]: https://github.com/moeru-ai/eventa/blob/main/LICENSE
+[jsdocs-src]: https://img.shields.io/badge/jsdocs-reference-080f12?style=flat&colorA=080f12&colorB=1fa669
+[jsdocs-href]: https://www.jsdocs.io/package/@unbird/eventa
