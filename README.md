@@ -32,7 +32,7 @@ If you need only events without RPC mechanism, then use with `context.emit(...)`
 ```ts
 import { createContext, defineEventa } from '@unbird/eventa'
 
-const move = defineEventa<{ x: number, y: number } >()
+const move = defineEventa<{ x: number, y: number }>()
 const ctx = createContext()
 
 ctx.emit(move, { x: 100, y: 200 })
@@ -45,7 +45,7 @@ Events can be seen as packets transferring in networks, so we can use pure event
 
 - `defineInvokeEventa`: define types of RPC/Stream RPC
 - `defineInvoke`: this produce a `function` returns `Promise` for your RPC call to be used later, you can store and use it everywhere you want
-- `defineInvokeHandler`: similar to how Nuxt, h3 defines their handler, we use `defineInvokeHandler` to hook a auto 
+- `defineInvokeHandler`: similar to how Nuxt, h3 defines their handler, we use `defineInvokeHandler` to hook a auto
 - `defineInvokeStreamHandler`: similar to gRPC, when one RPC invocation produces not only one response, but multiple intermediate events, you may want to use it
 
 #### Simple Example
@@ -71,7 +71,7 @@ If you are curious more, let's make one for WebSocket, first, create a shared fi
 import { defineInvokeEventa } from '@unbird/eventa'
 
 // create and export the RPC definition
-export createChatEventa = defineInvokeEventa<{ created: boolean }, { chatName: string }>('eventa:invoke:chat:new')
+export const createChatEventa = defineInvokeEventa<{ created: boolean }, { chatName: string }>('eventa:invoke:chat:new')
 ```
 
 For **Server** side:
@@ -108,7 +108,7 @@ const { context } = createWsContext(socket) // simply supply it, and the context
 const createChat = defineInvoke(context, createChatEventa)
 
 // now calling `createChat` will directly trigger the defineInvokeHandler
-console.log(await createChat()) // => { created: true }  
+console.log(await createChat()) // => { created: true }
 ```
 
 Eventa comes with various adapters for common use scenarios across browsers and Node.js, escalating the event orchestration in Electron, Web Workers, and WebSockets, etc.
