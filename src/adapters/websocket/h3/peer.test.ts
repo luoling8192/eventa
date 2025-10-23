@@ -1,4 +1,4 @@
-import type { Hooks } from 'crossws'
+import type { Hooks, Message } from 'crossws'
 
 import { plugin as ws } from 'crossws/server'
 import { defineWebSocketHandler, H3, serve } from 'h3'
@@ -49,17 +49,20 @@ describe('h3 websocket adapter', { timeout: 2000 }, async () => {
       const untilHelloEventTriggered1 = createUntil<void>()
       const handleHello = vi.fn()
 
-      serverPeerContext.on(helloEvent, (payload) => {
-        handleHello(payload)
+      serverPeerContext.on(helloEvent, (payload, options) => {
+        handleHello(payload, options)
         untilHelloEventTriggered1.handler()
       })
 
-      clientConnContext.emit(helloEvent, { result: 'Hello' })
+      clientConnContext.emit(helloEvent, { result: 'Hello' }, { raw: { message: {} as Message } })
       await untilHelloEventTriggered1.promise
 
       expect(handleHello).toBeCalledTimes(1)
       expect(handleHello.mock.calls[0][0].type).toEqual(helloEvent.type)
       expect(handleHello.mock.calls[0][0].body).toEqual({ result: 'Hello' })
+      expect(handleHello.mock.calls[0][1]).toBeTypeOf('object')
+      expect(handleHello.mock.calls[0][1].raw).toBeTypeOf('object')
+      expect(handleHello.mock.calls[0][1].raw).toHaveProperty('message')
     }
 
     {

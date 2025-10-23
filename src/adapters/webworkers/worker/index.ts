@@ -9,14 +9,12 @@ import { isWorkerEventa, normalizeOnListenerParameters, workerErrorEvent } from 
 
 export function createContext(options?: {
   messagePort?: Omit<Worker, 'close' | 'start'>
-}): {
-  context: EventContext
-} {
+}) {
   const {
     messagePort = self,
   } = options || {}
 
-  const ctx = createBaseContext() as EventContext<{ invokeRequest?: { transfer?: Transferable[] } }>
+  const ctx = createBaseContext() as EventContext<{ invokeRequest?: { transfer?: Transferable[] } }, { raw: { event?: any, error?: string | Event } }>
 
   ctx.on(and(
     matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
@@ -33,22 +31,22 @@ export function createContext(options?: {
   })
 
   self.onerror = (error) => {
-    ctx.emit(workerErrorEvent, { error })
+    ctx.emit(workerErrorEvent, { error }, { raw: { error } })
   }
 
   self.onmessage = (event) => {
     try {
       const { type, payload } = parseWorkerPayload<Eventa<any>>(event.data)
       if (!isWorkerEventa(payload)) {
-        ctx.emit(defineInboundEventa(type), payload.body)
+        ctx.emit(defineInboundEventa(type), payload.body, { raw: { event } })
       }
       else {
-        ctx.emit(defineInboundEventa(type), { message: payload.body })
+        ctx.emit(defineInboundEventa(type), { message: payload.body }, { raw: { event } })
       }
     }
     catch (error) {
       console.error('Failed to parse WebSocket message:', error)
-      ctx.emit(workerErrorEvent, { error })
+      ctx.emit(workerErrorEvent, { error }, { raw: { event } })
     }
   }
 

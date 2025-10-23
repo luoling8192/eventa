@@ -2,9 +2,9 @@ export function randomBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-export function createUntilTriggeredOnce<P, R>(fn: (...args: P[]) => R): {
+export function createUntilTriggeredOnce<F extends (...args: any[]) => any, P extends any[] = Parameters<F>, R = ReturnType<F>>(fn: F): {
   onceTriggered: Promise<Awaited<R>>
-  wrapper: (...args: P[]) => Promise<Awaited<R>>
+  wrapper: (...args: P) => Promise<Awaited<R>>
 } {
   let resolve!: (r: Awaited<R>) => void
   const promise = new Promise<Awaited<R>>((res) => {

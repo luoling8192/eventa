@@ -7,7 +7,7 @@ import { generateWorkerPayload, parseWorkerPayload } from './internal'
 import { isWorkerEventa, normalizeOnListenerParameters, workerErrorEvent } from './shared'
 
 export function createContext(worker: Worker) {
-  const ctx = createBaseContext() as EventContext<{ invokeRequest?: { transfer?: Transferable[] } }>
+  const ctx = createBaseContext() as EventContext<{ invokeRequest?: { transfer?: Transferable[] } }, { raw: { message?: MessageEvent, error?: ErrorEvent, messageError?: MessageEvent } }>
 
   ctx.on(and(
     matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
@@ -27,24 +27,24 @@ export function createContext(worker: Worker) {
     try {
       const { type, payload } = parseWorkerPayload<Eventa<any>>(event.data)
       if (!isWorkerEventa(payload)) {
-        ctx.emit(defineInboundEventa(type), payload.body)
+        ctx.emit(defineInboundEventa(type), payload.body, { raw: { message: event } })
       }
       else {
-        ctx.emit(defineInboundEventa(type), { message: payload.body })
+        ctx.emit(defineInboundEventa(type), { message: payload.body }, { raw: { message: event } })
       }
     }
     catch (error) {
       console.error('Failed to parse WebWorker message:', error)
-      ctx.emit(workerErrorEvent, { error })
+      ctx.emit(workerErrorEvent, { error }, { raw: { message: event } })
     }
   }
 
   worker.onerror = (error) => {
-    ctx.emit(workerErrorEvent, { error })
+    ctx.emit(workerErrorEvent, { error }, { raw: { error } })
   }
 
   worker.onmessageerror = (error) => {
-    ctx.emit(workerErrorEvent, { error })
+    ctx.emit(workerErrorEvent, { error }, { raw: { messageError: error } })
   }
 
   return {

@@ -7,17 +7,17 @@ interface CreateContextProps<EmitOptions = any> {
   adapter?: EventaAdapter<EmitOptions>
 }
 
-export function createContext<Extensions = any, EmitOptions = any>(props: CreateContextProps<EmitOptions> = {}): EventContext<Extensions, EmitOptions> {
-  const listeners = new Map<EventTag<any, any>, Set<(params: any, options?: EmitOptions) => any>>()
-  const onceListeners = new Map<EventTag<any, any>, Set<(params: any, options?: EmitOptions) => any>>()
+export function createContext<Extensions = any, Options = { raw: any }>(props: CreateContextProps<Options> = {}): EventContext<Extensions, Options> {
+  const listeners = new Map<EventTag<any, any>, Set<(params: any, options?: Options) => any>>()
+  const onceListeners = new Map<EventTag<any, any>, Set<(params: any, options?: Options) => any>>()
 
   const matchExpressions = new Map<string, EventaMatchExpression<any>>()
-  const matchExpressionListeners = new Map<string, Set<(params: any, options?: EmitOptions) => any>>()
-  const matchExpressionOnceListeners = new Map<string, Set<(params: any, options?: EmitOptions) => any>>()
+  const matchExpressionListeners = new Map<string, Set<(params: any, options?: Options) => any>>()
+  const matchExpressionOnceListeners = new Map<string, Set<(params: any, options?: Options) => any>>()
 
   const hooks = props.adapter?.(emit).hooks
 
-  function emit<P>(event: Eventa<P>, payload: P, options?: EmitOptions) {
+  function emit<P>(event: Eventa<P>, payload: P, options?: Options) {
     const emittingPayload = { ...event, body: payload }
 
     for (const listener of listeners.get(event.id) || []) {
@@ -64,7 +64,7 @@ export function createContext<Extensions = any, EmitOptions = any>(props: Create
 
     emit,
 
-    on<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void): () => void {
+    on<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: Options) => void): () => void {
       if (eventOrMatchExpression.type === EventaType.Event) {
         const event = eventOrMatchExpression as Eventa<P>
         if (!listeners.has(event.id)) {
@@ -93,7 +93,7 @@ export function createContext<Extensions = any, EmitOptions = any>(props: Create
       return () => void 0
     },
 
-    once<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: EmitOptions) => void): () => void {
+    once<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler: (payload: Eventa<P>, options?: Options) => void): () => void {
       if (eventOrMatchExpression.type === EventaType.Event) {
         const event = eventOrMatchExpression as Eventa<P>
         if (!onceListeners.has(event.id)) {
@@ -122,7 +122,7 @@ export function createContext<Extensions = any, EmitOptions = any>(props: Create
       return () => void 0
     },
 
-    off<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler?: (payload: Eventa<P>, options?: EmitOptions) => void) {
+    off<P>(eventOrMatchExpression: Eventa<P> | EventaMatchExpression<P>, handler?: (payload: Eventa<P>, options?: Options) => void) {
       switch (eventOrMatchExpression.type) {
         case EventaType.Event:
           if (handler !== undefined) {

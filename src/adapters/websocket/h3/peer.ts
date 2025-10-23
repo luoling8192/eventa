@@ -1,4 +1,4 @@
-import type { Hooks, Peer } from 'crossws'
+import type { Hooks, Message, Peer } from 'crossws'
 
 import type { EventContext } from '../../../context'
 import type { DirectionalEventa, Eventa } from '../../../eventa'
@@ -13,7 +13,7 @@ export const wsErrorEvent = defineEventa<{ error: unknown }>('eventa:adapters:we
 
 export function createPeerContext(peer: Peer): {
   hooks: Pick<Hooks, 'message'>
-  context: EventContext
+  context: EventContext<any, { raw: { message: Message } }>
 } {
   const peerId = peer.id
   const ctx = createBaseContext()
@@ -32,11 +32,11 @@ export function createPeerContext(peer: Peer): {
         if (peer.id === peerId) {
           try {
             const { type, payload } = parseWebsocketPayload<Eventa<any>>(message.text())
-            ctx.emit(defineInboundEventa(type), payload.body)
+            ctx.emit(defineInboundEventa(type), payload.body, { raw: { message } })
           }
           catch (error) {
             console.error('Failed to parse WebSocket message:', error)
-            ctx.emit(wsErrorEvent, { error })
+            ctx.emit(wsErrorEvent, { error }, { raw: { message } })
           }
         }
       },
@@ -45,7 +45,7 @@ export function createPeerContext(peer: Peer): {
   }
 }
 
-export interface PeerContext { peer: Peer, context: EventContext }
+export interface PeerContext { peer: Peer, context: EventContext<any, { raw: { message: Message } }> }
 
 export function createPeerHooks(): { hooks: Partial<Hooks>, untilLeastOneConnected: Promise<PeerContext> } {
   let resolve: (value: PeerContext) => void

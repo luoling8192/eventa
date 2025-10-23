@@ -79,7 +79,7 @@ describe('web workers', async () => {
     const eventa = defineOutboundWorkerEventa('worker-transfer')
 
     const buffer = new ArrayBuffer(8)
-    ctx.emit(eventa, { message: buffer, transfer: [buffer] })
+    ctx.emit(eventa, { message: buffer, transfer: [buffer] }, { raw: { message: {} as MessageEvent } })
 
     {
       const postMessage = worker.postMessage as unknown as Mock
@@ -112,6 +112,8 @@ describe('web workers', async () => {
       expect(onHandler.mock.calls[0][0].body.message).toBeInstanceOf(ArrayBuffer)
       expect(onHandler.mock.calls[0][0].body.message).toBe(buffer)
       expect(onHandler.mock.calls[0][0].body.transfer).toBeUndefined()
+      expect(onHandler.mock.calls[0][1]).toHaveProperty('raw')
+      expect(onHandler.mock.calls[0][1].raw).toHaveProperty('message')
     }
   })
 })

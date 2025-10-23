@@ -1,3 +1,4 @@
+import type { EventContext } from '../../context'
 import type { DirectionalEventa, Eventa } from '../../eventa'
 
 import { createContext as createBaseContext } from '../../context'
@@ -20,7 +21,7 @@ export function createContext(eventTarget: NodeJS.EventEmitter, options?: {
   errorEventName?: string | false
   extraListeners?: Record<string, (event: Event) => void | Promise<void>>
 }) {
-  const ctx = createBaseContext()
+  const ctx = createBaseContext() as EventContext<any, { raw: { event: CustomEvent | Event | unknown } }>
 
   const {
     messageEventName = 'message',
@@ -42,18 +43,18 @@ export function createContext(eventTarget: NodeJS.EventEmitter, options?: {
     cleanupRemoval.push(withRemoval(eventTarget, messageEventName, (event) => {
       try {
         const { type, payload } = parsePayload<Eventa<any>>((event as CustomEvent).detail)
-        ctx.emit(defineInboundEventa(type), payload.body)
+        ctx.emit(defineInboundEventa(type), payload.body, { raw: { event } })
       }
       catch (error) {
         console.error('Failed to parse EventEmitter message:', error)
-        ctx.emit(errorEvent, { error })
+        ctx.emit(errorEvent, { error }, { raw: { event } })
       }
     }))
   }
 
   if (errorEventName) {
     cleanupRemoval.push(withRemoval(eventTarget, errorEventName, (error) => {
-      ctx.emit(errorEvent, { error })
+      ctx.emit(errorEvent, { error }, { raw: { event: error } })
     }))
   }
 

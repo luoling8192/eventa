@@ -8,7 +8,14 @@ import type {
 
 import { defineEventa, nanoid } from './eventa'
 
-export function defineStreamInvoke<Res, Req = undefined, ResErr = Error, ReqErr = Error>(clientCtx: EventContext, event: InvokeEventa<Res, Req, ResErr, ReqErr>) {
+export function defineStreamInvoke<
+  Res,
+  Req = undefined,
+  ResErr = Error,
+  ReqErr = Error,
+  E = any,
+  EO = any,
+>(clientCtx: EventContext<E, EO>, event: InvokeEventa<Res, Req, ResErr, ReqErr>) {
   return (req: Req) => {
     const invokeId = nanoid()
 
@@ -61,8 +68,25 @@ export function defineStreamInvoke<Res, Req = undefined, ResErr = Error, ReqErr 
   }
 }
 
-export function defineStreamInvokeHandler<Res, Req = undefined, ResErr = Error, ReqErr = Error>(serverCtx: EventContext, event: InvokeEventa<Res, Req, ResErr, ReqErr>, fn: (payload: Req) => AsyncGenerator<Res, void, unknown>) {
-  serverCtx.on(event.sendEvent, async (payload) => { // on: event_trigger
+type StreamHandler<Res, Req = any, RawEventOptions = unknown> = (
+  payload: Req,
+  options?: {
+    /**
+     * TODO: Support aborting invoke handlers
+     */
+    abortController?: AbortController
+  } & RawEventOptions
+) => AsyncGenerator<Res, void, unknown>
+
+export function defineStreamInvokeHandler<
+  Res,
+  Req = undefined,
+  ResErr = Error,
+  ReqErr = Error,
+  E = any,
+  EO extends { raw?: any } = any,
+>(serverCtx: EventContext<E, EO>, event: InvokeEventa<Res, Req, ResErr, ReqErr>, fn: StreamHandler<Res, Req, EO>) {
+  serverCtx.on(event.sendEvent, async (payload, options) => { // on: event_trigger
     if (!payload.body) {
       return
     }
@@ -75,21 +99,21 @@ export function defineStreamInvokeHandler<Res, Req = undefined, ResErr = Error, 
     const invokeReceiveEventStreamEnd = defineEventa(`${event.receiveEventStreamEnd.id}-${payload.body.invokeId}`) as ReceiveEventStreamEnd<Res>
 
     try {
-      const generator = fn(payload.body.content as Req) // Call the handler function with the request payload
+      const generator = fn(payload.body.content as Req, options) // Call the handler function with the request payload
       for await (const res of generator) {
-        serverCtx.emit(invokeReceiveEvent, { ...payload.body, content: res }) // emit: event_response
+        serverCtx.emit(invokeReceiveEvent, { ...payload.body, content: res }, options) // emit: event_response
       }
 
-      serverCtx.emit(invokeReceiveEventStreamEnd, { ...payload.body, content: undefined }) // emit: event_stream_end
+      serverCtx.emit(invokeReceiveEventStreamEnd, { ...payload.body, content: undefined }, options) // emit: event_stream_end
     }
     catch (error) {
-      serverCtx.emit(invokeReceiveEventError, { ...payload.body, content: error as any }) // emit: event_response with error
+      serverCtx.emit(invokeReceiveEventError, { ...payload.body, content: error as any }, options) // emit: event_response with error
     }
   })
 }
 
-export function toStreamHandler<Req, Res>(handler: (context: { payload: Req, emit: (data: Res) => void }) => Promise<void>): (payload: Req) => AsyncGenerator<Res, void, unknown> {
-  return (payload) => {
+export function toStreamHandler<Req, Res, EO extends { raw?: any } = any>(handler: (context: { payload: Req, options?: EO, emit: (data: Res) => void }) => Promise<void>): StreamHandler<Res, Req, EO> {
+  return (payload, options) => {
     const values: Promise<[Res, boolean]>[] = []
     let resolve: (x: [Res, boolean]) => void
     let handlerError: Error | null = null
@@ -106,7 +130,7 @@ export function toStreamHandler<Req, Res>(handler: (context: { payload: Req, emi
     }
 
     // Start the handler and mark completion when done
-    handler({ payload, emit })
+    handler({ payload, options, emit })
       .then(() => {
         resolve([undefined as any, true])
       })

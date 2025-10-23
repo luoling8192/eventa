@@ -1,4 +1,4 @@
-import type { Hooks } from 'crossws'
+import type { Hooks, Message } from 'crossws'
 
 import type { Eventa } from '../../../eventa'
 
@@ -43,8 +43,8 @@ describe('h3 websocket adapter', { timeout: 2000 }, async () => {
     const untilHelloEventTriggered1 = createUntil<void>()
     const handleHello = vi.fn()
 
-    ctx.on(helloEvent, (payload) => {
-      handleHello(payload)
+    ctx.on(helloEvent, (payload, options) => {
+      handleHello(payload, options)
       untilHelloEventTriggered1.handler()
     })
 
@@ -60,13 +60,16 @@ describe('h3 websocket adapter', { timeout: 2000 }, async () => {
       timestamp: Date.now(),
     }))
     // Context passive send
-    ctx.emit(helloEvent, { result: 'Hello' })
+    ctx.emit(helloEvent, { result: 'Hello' }, { raw: { message: { } as Message } })
 
     await untilHelloEventTriggered1.promise
     wsConn.close()
 
     expect(handleHello).toBeCalledTimes(1)
     expect(handleHello.mock.calls[0][0]).toEqual({ id: helloEvent.id, type: helloEvent.type, body: { result: 'Hello' } })
+    expect(handleHello.mock.calls[0][1]).toBeTypeOf('object')
+    expect(handleHello.mock.calls[0][1].raw).toBeTypeOf('object')
+    expect(handleHello.mock.calls[0][1].raw).toHaveProperty('message')
   })
 
   it('should create a h3 ws adapter and handle events with context', async (testCtx) => {
@@ -101,19 +104,22 @@ describe('h3 websocket adapter', { timeout: 2000 }, async () => {
     const untilHelloEventTriggered1 = createUntil<void>()
     const handleHello = vi.fn()
 
-    ctx.on(helloEvent, (payload) => {
-      handleHello(payload)
+    ctx.on(helloEvent, (payload, options) => {
+      handleHello(payload, options)
       untilHelloEventTriggered1.handler()
     })
 
     // Context passive send
-    ctx.emit(helloEvent, { result: 'Hello' })
+    ctx.emit(helloEvent, { result: 'Hello' }, { raw: { message: { } as Message } })
 
     await untilHelloEventTriggered1.promise
     wsConn.close()
 
     expect(handleHello).toBeCalledTimes(1)
     expect(handleHello.mock.calls[0][0]).toEqual({ id: helloEvent.id, type: helloEvent.type, body: { result: 'Hello' } })
+    expect(handleHello.mock.calls[0][1]).toBeTypeOf('object')
+    expect(handleHello.mock.calls[0][1].raw).toBeTypeOf('object')
+    expect(handleHello.mock.calls[0][1].raw).toHaveProperty('message')
   })
 
   it('should handle connection lifecycle events', async (testCtx) => {

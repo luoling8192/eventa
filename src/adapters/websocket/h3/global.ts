@@ -1,4 +1,4 @@
-import type { Hooks, Peer } from 'crossws'
+import type { Hooks, Message, Peer, WSError } from 'crossws'
 
 import type { EventContext } from '../../../context'
 import type { DirectionalEventa, Eventa } from '../../../eventa'
@@ -13,7 +13,7 @@ export const wsErrorEvent = defineEventa<{ error: unknown }>('eventa:adapters:we
 
 export function createGlobalContext(): {
   websocketHandlers: Omit<Hooks, 'upgrade'>
-  context: EventContext
+  context: EventContext<any, { raw: { error?: WSError, message?: Message } }>
 } {
   const ctx = createBaseContext()
   const peers = new Set<Peer>()
@@ -32,27 +32,27 @@ export function createGlobalContext(): {
     websocketHandlers: {
       open(peer) {
         peers.add(peer)
-        ctx.emit(wsConnectedEvent, { id: peer.id })
+        ctx.emit(wsConnectedEvent, { id: peer.id }, { raw: { } })
       },
 
       close(peer) {
         peers.delete(peer)
-        ctx.emit(wsDisconnectedEvent, { id: peer.id })
+        ctx.emit(wsDisconnectedEvent, { id: peer.id }, { raw: { } })
       },
 
       error(_, error) {
         console.error('WebSocket error:', error)
-        ctx.emit(wsErrorEvent, { error })
+        ctx.emit(wsErrorEvent, { error }, { raw: { error } })
       },
 
       async message(_, message) {
         try {
           const { type, payload } = parseWebsocketPayload<Eventa<any>>(message.text())
-          ctx.emit(defineInboundEventa(type), payload.body)
+          ctx.emit(defineInboundEventa(type), payload.body, { raw: { message } })
         }
         catch (error) {
           console.error('Failed to parse WebSocket message:', error)
-          ctx.emit(wsErrorEvent, { error })
+          ctx.emit(wsErrorEvent, { error }, { raw: { message } })
         }
       },
     },

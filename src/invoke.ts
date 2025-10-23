@@ -4,7 +4,7 @@ import type { InvokeEventa, ReceiveEvent, ReceiveEventError } from './invoke-sha
 import { defineEventa, nanoid } from './eventa'
 
 type IsInvokeRequestOptional<EC extends EventContext<any, any>>
-  = EC extends EventContext<infer E>
+  = EC extends EventContext<infer E, any>
     ? E extends { invokeRequest?: any }
       ? undefined extends E['invokeRequest']
         ? true
@@ -13,7 +13,7 @@ type IsInvokeRequestOptional<EC extends EventContext<any, any>>
     : true
 
 type ExtractInvokeRequest<EC extends EventContext<any, any>>
-  = EC extends EventContext<infer E>
+  = EC extends EventContext<infer E, any>
     ? E extends { invokeRequest: infer IR }
       ? IR
       : E extends { invokeRequest?: infer IR }
@@ -34,7 +34,15 @@ type InvokeFunctionMap<EventMap extends Record<string, InvokeEventa<any, any, an
   [K in keyof EventMap]: EventMap[K] extends InvokeEventa<infer Res, infer Req, any, any> ? InvokeFunction<Res, Req, EC> : never
 }
 
-type Handler<Res, Req = any> = (payload: Req) => Promise<Res> | Res
+type Handler<Res, Req = any, RawEventOptions = unknown> = (
+  payload: Req,
+  options?: {
+    /**
+     * TODO: Support aborting invoke handlers
+     */
+    abortController?: AbortController
+  } & RawEventOptions
+) => Promise<Res> | Res
 
 type InternalInvokeHandler<
   Res,
@@ -44,8 +52,8 @@ type InternalInvokeHandler<
   EO = any,
 > = (params: InvokeEventa<Res, Req, ResErr, ReqErr>['sendEvent'], eventOptions?: EO) => void
 
-type HandlerMap<EventMap extends Record<string, InvokeEventa<any, any, any, any>>> = {
-  [K in keyof EventMap]: EventMap[K] extends InvokeEventa<infer Res, infer Req, any, any> ? Handler<Res, Req> : never
+type HandlerMap<EventMap extends Record<string, InvokeEventa<any, any, any, any>>, EO = any> = {
+  [K in keyof EventMap]: EventMap[K] extends InvokeEventa<infer Res, infer Req, any, any> ? Handler<Res, Req, EO> : never
 }
 
 interface InvocableEventContext<E, EO> extends EventContext<E, EO> {
@@ -139,8 +147,8 @@ export function defineInvokeHandler<
   ResErr = Error,
   ReqErr = Error,
   E = any,
-  EO = any,
->(serverCtx: InvocableEventContext<E, EO>, event: InvokeEventa<Res, Req, ResErr, ReqErr>, handler: Handler<Res, Req>): () => void {
+  EO extends { raw?: any } = any,
+>(serverCtx: InvocableEventContext<E, EO>, event: InvokeEventa<Res, Req, ResErr, ReqErr>, handler: Handler<Res, Req, EO>): () => void {
   if (!serverCtx.invokeHandlers) {
     serverCtx.invokeHandlers = new Map()
   }
@@ -151,9 +159,9 @@ export function defineInvokeHandler<
     serverCtx.invokeHandlers?.set(event.sendEvent.id, handlers)
   }
 
-  let internalHandler = handlers.get(handler) as InternalInvokeHandler<Res, Req, ResErr, ReqErr> | undefined
+  let internalHandler = handlers.get(handler) as InternalInvokeHandler<Res, Req, ResErr, ReqErr, EO> | undefined
   if (!internalHandler) {
-    internalHandler = async (payload) => { // on: event_trigger
+    internalHandler = async (payload, options) => { // on: event_trigger
       if (!payload.body) {
         return
       }
@@ -162,12 +170,12 @@ export function defineInvokeHandler<
       }
 
       try {
-        const response = await handler(payload.body?.content as Req) // Call the handler function with the request payload
-        serverCtx.emit(defineEventa(`${event.receiveEvent.id}-${payload.body.invokeId}`) as ReceiveEvent<Res>, { ...payload.body, content: response }) // emit: event_response
+        const response = await handler(payload.body?.content as Req, options) // Call the handler function with the request payload
+        serverCtx.emit(defineEventa(`${event.receiveEvent.id}-${payload.body.invokeId}`) as ReceiveEvent<Res>, { ...payload.body, content: response }, options) // emit: event_response
       }
       catch (error) {
         // TODO: to error object
-        serverCtx.emit(defineEventa(`${event.receiveEventError.id}-${payload.body.invokeId}`) as ReceiveEventError<ResErr>, { ...payload.body, content: error as any })
+        serverCtx.emit(defineEventa(`${event.receiveEventError.id}-${payload.body.invokeId}`) as ReceiveEventError<ResErr>, { ...payload.body, content: error as any }, options)
       }
     }
     handlers.set(handler, internalHandler)
@@ -181,8 +189,8 @@ export function defineInvokeHandlers<
   EK extends string,
   EventMap extends Record<EK, InvokeEventa<any, any, any, any>>,
   E = any,
-  EO = any,
->(serverCtx: InvocableEventContext<E, EO>, events: EventMap, handlers: HandlerMap<EventMap>): Record<EK, () => void> {
+  EO extends { raw?: any } = any,
+>(serverCtx: InvocableEventContext<E, EO>, events: EventMap, handlers: HandlerMap<EventMap, EO>): Record<EK, () => void> {
   const eventKeys = Object.keys(events) as EK[]
   const handlerKeys = new Set(Object.keys(handlers) as EK[])
 
@@ -211,7 +219,7 @@ export function undefineInvokeHandler<
   ReqErr = Error,
   E = any,
   EO = any,
->(serverCtx: InvocableEventContext<E, EO>, event: InvokeEventa<Res, Req, ResErr, ReqErr>, handler?: Handler<Res, Req>): boolean {
+>(serverCtx: InvocableEventContext<E, EO>, event: InvokeEventa<Res, Req, ResErr, ReqErr>, handler?: Handler<Res, Req, EO>): boolean {
   if (!serverCtx.invokeHandlers)
     return false
 

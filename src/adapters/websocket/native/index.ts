@@ -1,3 +1,4 @@
+import type { EventContext } from '../../../context'
 import type { DirectionalEventa, Eventa } from '../../../eventa'
 
 import { createContext as createBaseContext } from '../../../context'
@@ -9,7 +10,7 @@ export const wsDisconnectedEvent = defineEventa<{ url: string }>()
 export const wsErrorEvent = defineEventa<{ error: unknown }>()
 
 export function createContext(wsConn: WebSocket) {
-  const ctx = createBaseContext()
+  const ctx = createBaseContext() as EventContext<any, { raw: { message?: any, open?: Event, error?: Event, close?: CloseEvent } }>
 
   ctx.on(and(
     matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
@@ -22,24 +23,24 @@ export function createContext(wsConn: WebSocket) {
   wsConn.onmessage = (event) => {
     try {
       const { type, payload } = parseWebsocketPayload<Eventa<any>>(event.data)
-      ctx.emit(defineInboundEventa(type), payload.body)
+      ctx.emit(defineInboundEventa(type), payload.body, { raw: { message: event } })
     }
     catch (error) {
       console.error('Failed to parse WebSocket message:', error)
-      ctx.emit(wsErrorEvent, { error })
+      ctx.emit(wsErrorEvent, { error }, { raw: { message: event } })
     }
   }
 
-  wsConn.onopen = () => {
-    ctx.emit(wsConnectedEvent, { url: wsConn.url })
+  wsConn.onopen = (event) => {
+    ctx.emit(wsConnectedEvent, { url: wsConn.url }, { raw: { open: event } })
   }
 
   wsConn.onerror = (error) => {
-    ctx.emit(wsErrorEvent, { error })
+    ctx.emit(wsErrorEvent, { error }, { raw: { error } })
   }
 
-  wsConn.onclose = () => {
-    ctx.emit(wsDisconnectedEvent, { url: wsConn.url })
+  wsConn.onclose = (close) => {
+    ctx.emit(wsDisconnectedEvent, { url: wsConn.url }, { raw: { close } })
   }
 
   return {

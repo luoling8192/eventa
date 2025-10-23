@@ -1,5 +1,6 @@
 import type { IpcRenderer, IpcRendererListener } from '@electron-toolkit/preload'
 
+import type { EventContext } from '../../context'
 import type { DirectionalEventa, Eventa } from '../../eventa'
 
 import { createContext as createBaseContext } from '../../context'
@@ -12,7 +13,7 @@ export function createContext(ipcRenderer: IpcRenderer, options?: {
   errorEventName?: string | false
   extraListeners?: Record<string, IpcRendererListener>
 }) {
-  const ctx = createBaseContext()
+  const ctx = createBaseContext() as EventContext<any, { raw: { ipcRendererEvent: Electron.IpcRendererEvent, event: Event | unknown } }>
 
   const {
     messageEventName = 'eventa-message',
@@ -40,21 +41,21 @@ export function createContext(ipcRenderer: IpcRenderer, options?: {
   })
 
   if (messageEventName) {
-    ipcRenderer.on(messageEventName, (_, event) => {
+    ipcRenderer.on(messageEventName, (ipcRendererEvent, event) => {
       try {
         const { type, payload } = parsePayload<Eventa<any>>(event)
-        ctx.emit(defineInboundEventa(type), payload.body)
+        ctx.emit(defineInboundEventa(type), payload.body, { raw: { ipcRendererEvent, event } })
       }
       catch (error) {
         console.error('Failed to parse IpcRenderer message:', error)
-        ctx.emit(errorEvent, { error })
+        ctx.emit(errorEvent, { error }, { raw: { ipcRendererEvent, event } })
       }
     })
   }
 
   if (errorEventName) {
-    ipcRenderer.on(errorEventName, (_, error) => {
-      ctx.emit(errorEvent, { error })
+    ipcRenderer.on(errorEventName, (ipcRendererEvent, error) => {
+      ctx.emit(errorEvent, { error }, { raw: { ipcRendererEvent, event: error } })
     })
   }
 

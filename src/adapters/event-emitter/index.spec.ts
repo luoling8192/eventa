@@ -19,12 +19,17 @@ describe('event target', async () => {
 
     const eventa = defineEventa<{ message: string }>()
     const { context: ctx } = createContext(eventTarget)
-    const { onceTriggered, wrapper } = createUntilTriggeredOnce<Eventa, Eventa>(event => event)
+    const { onceTriggered, wrapper } = createUntilTriggeredOnce((event: Eventa, options) => ({ eventa: event, options }))
 
     ctx.on(eventa, wrapper)
-    ctx.emit(defineInboundEventa(eventa.id), { message: 'Hello, Event Target!' }) // emit: event_trigger
+    ctx.emit(defineInboundEventa(eventa.id), { message: 'Hello, Event Target!' }, { raw: { event: { message: 'Hello, Event Target!' } } }) // emit: event_trigger
     const event = await onceTriggered
-    expect(event.body).toEqual({ message: 'Hello, Event Target!' })
+    expect(event.eventa.body).toEqual({ message: 'Hello, Event Target!' })
+    expect(event.options).toBeDefined()
+    expect(event.options).toBeTypeOf('object')
+    expect(event.options.raw).toBeDefined()
+    expect(event.options.raw).toBeTypeOf('object')
+    expect(event.options.raw).toHaveProperty('event')
   })
 
   it('should be able to invoke', async () => {

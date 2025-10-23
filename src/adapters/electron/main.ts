@@ -1,5 +1,6 @@
-import type { BrowserWindow, IpcMain } from 'electron'
+import type { BrowserWindow, IpcMain, IpcMainEvent } from 'electron'
 
+import type { EventContext } from '../../context'
 import type { DirectionalEventa, Eventa } from '../../eventa'
 
 import { createContext as createBaseContext } from '../../context'
@@ -23,7 +24,7 @@ export function createContext(ipcMain: IpcMain, window: BrowserWindow, options?:
   extraListeners?: Record<string, (_, event: Event) => void | Promise<void>>
   throwIfFailedToSend?: boolean
 }) {
-  const ctx = createBaseContext()
+  const ctx = createBaseContext() as EventContext<any, { raw: { ipcMainEvent: IpcMainEvent, event: Event | unknown } }>
 
   const {
     messageEventName = 'eventa-message',
@@ -56,21 +57,21 @@ export function createContext(ipcMain: IpcMain, window: BrowserWindow, options?:
   })
 
   if (messageEventName) {
-    cleanupRemoval.push(withRemoval(ipcMain, messageEventName, (_, event: Event | unknown) => {
+    cleanupRemoval.push(withRemoval(ipcMain, messageEventName, (ipcMainEvent, event: Event | unknown) => {
       try {
         const { type, payload } = parsePayload<Eventa<any>>(event)
-        ctx.emit(defineInboundEventa(type), payload.body)
+        ctx.emit(defineInboundEventa(type), payload.body, { raw: { ipcMainEvent, event } })
       }
       catch (error) {
         console.error('Failed to parse IpcMain message:', error)
-        ctx.emit(errorEvent, { error })
+        ctx.emit(errorEvent, { error }, { raw: { ipcMainEvent, event } })
       }
     }))
   }
 
   if (errorEventName) {
-    cleanupRemoval.push(withRemoval(ipcMain, errorEventName, (_, error: Event | unknown) => {
-      ctx.emit(errorEvent, { error })
+    cleanupRemoval.push(withRemoval(ipcMain, errorEventName, (ipcMainEvent, error: Event | unknown) => {
+      ctx.emit(errorEvent, { error }, { raw: { ipcMainEvent, event: error } })
     }))
   }
 

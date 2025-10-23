@@ -1,3 +1,4 @@
+import type { EventContext } from '../../context'
 import type { DirectionalEventa, Eventa } from '../../eventa'
 
 import { createContext as createBaseContext } from '../../context'
@@ -20,7 +21,7 @@ export function createContext(eventTarget: EventTarget, options?: {
   errorEventName?: string | false
   extraListeners?: Record<string, (event: Event) => void | Promise<void>>
 }) {
-  const ctx = createBaseContext()
+  const ctx = createBaseContext() as EventContext<any, { raw: { event: CustomEvent | Event | unknown } }>
 
   const {
     messageEventName = 'message',
@@ -49,18 +50,18 @@ export function createContext(eventTarget: EventTarget, options?: {
     cleanupRemoval.push(withRemoval(eventTarget, messageEventName, (event) => {
       try {
         const { type, payload } = parseCustomEventDetail<Eventa<any>>((event as CustomEvent).detail)
-        ctx.emit(defineInboundEventa(type), payload.body)
+        ctx.emit(defineInboundEventa(type), payload.body, { raw: { event } })
       }
       catch (error) {
         console.error('Failed to parse WebSocket message:', error)
-        ctx.emit(workerErrorEvent, { error })
+        ctx.emit(workerErrorEvent, { error }, { raw: { event } })
       }
     }))
   }
 
   if (errorEventName) {
     cleanupRemoval.push(withRemoval(eventTarget, errorEventName, (error) => {
-      ctx.emit(workerErrorEvent, { error })
+      ctx.emit(workerErrorEvent, { error }, { raw: { event: error } })
     }))
   }
 
