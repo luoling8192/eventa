@@ -10,10 +10,10 @@
     "url": "https://github.com/luoling8192"
   },
   "license": "MIT",
-  "homepage": "https://github.com/luoling8192/eventa",
+  "homepage": "https://github.com/moeru-ai/eventa",
   "repository": {
     "type": "git",
-    "url": "https://github.com/luoling8192/eventa.git"
+    "url": "https://github.com/moeru-ai/eventa.git"
   },
   "exports": {
     ".": {
