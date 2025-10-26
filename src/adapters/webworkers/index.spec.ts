@@ -3,6 +3,8 @@
 
 import type { Mock } from 'vitest'
 
+import type { WithTransfer } from './worker'
+
 import Worker from 'web-worker'
 
 import { describe, expect, it, vi } from 'vitest'
@@ -62,6 +64,19 @@ describe('web workers', async () => {
 
     const res = await input()
     expect(res.output).toBe('Worker received: Hello from worker thread with transfer!, 32 bytes')
+  })
+
+  it('should be able to handle invoke from worker that returns transfer', async () => {
+    const worker = new Worker(new URL('./worker/test-worker.ts', import.meta.url), { type: 'module' })
+    const { context: ctx } = createContext(worker)
+
+    const invokeReturnsTransfer = defineInvokeEventa<WithTransfer<{ output: string, buffer: ArrayBuffer }>>('test-worker-from-worker-invoke-returns-transfer')
+    const input = defineInvoke(ctx, invokeReturnsTransfer)
+
+    const res = await input()
+    expect(res.message.output).toBe('Hello from worker thread!')
+    expect(res.message.buffer).toBeInstanceOf(ArrayBuffer)
+    expect((res.message.buffer as ArrayBuffer).byteLength).toBe(32)
   })
 
   it('should be able to post message with transfer', async () => {

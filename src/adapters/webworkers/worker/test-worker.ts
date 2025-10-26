@@ -1,4 +1,6 @@
-import { createContext } from '.'
+import type { WithTransfer } from '.'
+
+import { createContext, withTransfer } from '.'
 import { defineInvoke, defineInvokeHandler } from '../../../invoke'
 import { defineInvokeEventa } from '../../../invoke-shared'
 
@@ -9,6 +11,12 @@ defineInvokeHandler(ctx, invokeEvents, ({ input }) => ({ output: `Worker receive
 
 const invokeWithTransferEvents = defineInvokeEventa<{ output: string }, { input: { message: string, data: ArrayBuffer } }>('test-worker-with-transfer-invoke')
 defineInvokeHandler(ctx, invokeWithTransferEvents, ({ input }) => ({ output: `Worker received: ${input.message}, ${input.data.byteLength} bytes` }))
+
+const invokeReturnsTransfer = defineInvokeEventa<WithTransfer<{ output: string }>, { input: string }>('test-worker-from-worker-invoke-returns-transfer')
+defineInvokeHandler(ctx, invokeReturnsTransfer, () => {
+  const buffer = new ArrayBuffer(32)
+  return withTransfer({ output: 'Hello from worker thread!', buffer }, [buffer])
+})
 
 const invokeFromWorkerThreadForMainThread = defineInvokeEventa<{ output: string }, { input: string }>('test-worker-from-worker-invoke-for-main-thread')
 const invokeFromWorkerThreadEvents = defineInvokeEventa<Promise<{ output: string }>>('test-worker-from-worker-invoke')

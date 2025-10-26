@@ -27,6 +27,11 @@ export function createContext(options?: {
       return
     }
 
+    if (Array.isArray(body.content?._transfer)) {
+      messagePort.postMessage(data, { transfer: body.content?._transfer })
+      return
+    }
+
     messagePort.postMessage(data)
   })
 
@@ -45,12 +50,24 @@ export function createContext(options?: {
       }
     }
     catch (error) {
-      console.error('Failed to parse WebSocket message:', error)
+      console.error('Failed to parse WebWorker message:', error)
       ctx.emit(workerErrorEvent, { error }, { raw: { event } })
     }
   }
 
   return {
     context: ctx,
+  }
+}
+
+export interface WithTransfer<T> {
+  message: T
+  _transfer?: Transferable[]
+}
+
+export function withTransfer<T>(body: T, transfer?: Transferable[]): WithTransfer<T> {
+  return {
+    message: body,
+    _transfer: transfer ?? [],
   }
 }
