@@ -14,7 +14,13 @@ export function createContext(options?: {
     messagePort = self,
   } = options || {}
 
-  const ctx = createBaseContext() as EventContext<{ invokeRequest?: { transfer?: Transferable[] } }, { raw: { event?: any, error?: string | Event } }>
+  const ctx = createBaseContext() as EventContext<
+    {
+      invokeRequest?: { transfer?: Transferable[] }
+      invokeResponse?: { transfer?: Transferable[] }
+    },
+    { raw: { event?: any, error?: string | Event } }
+  >
 
   ctx.on(and(
     matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
@@ -24,11 +30,6 @@ export function createContext(options?: {
     const data = generateWorkerPayload(event.id, { ...defineOutboundEventa(event.type), ...event, body })
     if (transfer != null) {
       messagePort.postMessage(data, { transfer })
-      return
-    }
-
-    if (Array.isArray(body.content?._transfer)) {
-      messagePort.postMessage(data, { transfer: body.content?._transfer })
       return
     }
 
@@ -57,17 +58,5 @@ export function createContext(options?: {
 
   return {
     context: ctx,
-  }
-}
-
-export interface WithTransfer<T> {
-  message: T
-  _transfer?: Transferable[]
-}
-
-export function withTransfer<T>(body: T, transfer?: Transferable[]): WithTransfer<T> {
-  return {
-    message: body,
-    _transfer: transfer ?? [],
   }
 }

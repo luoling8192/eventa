@@ -54,7 +54,7 @@ export interface EventaLike<_P = undefined, T extends EventaType = EventaType> {
   type?: T
 }
 
-export interface Eventa<P = undefined> extends EventaLike<P, EventaType.Event> {
+export interface Eventa<P = unknown> extends EventaLike<P, EventaType.Event> {
   body?: P
 }
 
