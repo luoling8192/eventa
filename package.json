@@ -1,5 +1,5 @@
 {
-  "name": "@moeru/eventa",
+  "name": "@unbird/eventa",
   "type": "module",
   "version": "0.2.2",
   "packageManager": "pnpm@10.18.0",
