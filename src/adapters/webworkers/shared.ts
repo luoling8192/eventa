@@ -1,6 +1,9 @@
+import type { EventContext } from '../../context'
 import type { Eventa, EventTag } from '../../eventa'
+import type { ExtendableInvokeResponse } from '../../invoke'
 
 import { defineEventa, defineOutboundEventa } from '../../eventa'
+import { isExtendableInvokeResponseLike } from '../../invoke'
 
 export interface WorkerPayload<T> {
   id: string
@@ -38,24 +41,49 @@ export const workerErrorEvent = defineEventa<{ error: unknown }>()
 export const workerMessageErrorEvent = defineEventa<{ error: unknown, message: any }>()
 
 export function normalizeOnListenerParameters(event: Eventa<any>, options?: { transfer?: Transferable[] } | unknown) {
-  let body: { message: any, transfer?: Transferable[] } | any | undefined = event.body
+  let eventPayload: any = event.body
   let transfer: Transferable[] | undefined
 
-  if (isWorkerEventa(event)) {
-    const e = event as WorkerEventa<any>
+  if (isExtendableInvokeResponseLike<unknown, EventContext<{ invokeResponse?: { transfer?: Transferable[] } }>>(event)) {
+    if (event.body!.content.invokeResponse?.transfer != null) {
+      transfer = event.body!.content.invokeResponse!.transfer
+      delete event.body!.content.invokeResponse
+    }
 
-    transfer = e.body?.transfer
-    body = e.body?.message
-    delete event.body
+    eventPayload = { ...event.body, content: event.body!.content.response }
+    delete eventPayload.content.response
   }
-  else if (typeof options !== 'undefined' && options != null && typeof options === 'object' && 'transfer' in options) {
+  else if (isWorkerEventa(event)) {
+    transfer = event.body?.transfer
+    delete event.body?.transfer
+
+    eventPayload = event.body?.message
+    delete event.body?.message
+  }
+
+  // Override from options
+  if (typeof options !== 'undefined' && options != null && typeof options === 'object' && 'transfer' in options) {
     if (Array.isArray(options.transfer)) {
       transfer = options.transfer
     }
   }
 
   return {
-    body,
+    body: eventPayload,
     transfer,
+  }
+}
+
+export interface WithTransfer<T> {
+  message: T
+  _transfer?: Transferable[]
+}
+
+export function withTransfer<T>(body: T, transfer?: Transferable[]): ExtendableInvokeResponse<T, EventContext<{ invokeResponse?: { transfer?: Transferable[] } }, any>> {
+  return {
+    response: body,
+    invokeResponse: {
+      transfer: transfer ?? [],
+    },
   }
 }
