@@ -149,7 +149,7 @@ export function createContext<Extensions = any, Options = { raw: any }>(props: C
   }
 }
 
-export interface EventContext<Extensions = any, EmitOptions = undefined> {
+export interface EventContext<Extensions = undefined, EmitOptions = undefined> {
   listeners: Map<EventTag<any, any>, Set<(params: any) => any>>
   onceListeners: Map<EventTag<any, any>, Set<(params: any) => any>>
 

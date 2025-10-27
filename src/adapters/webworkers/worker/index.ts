@@ -14,7 +14,13 @@ export function createContext(options?: {
     messagePort = self,
   } = options || {}
 
-  const ctx = createBaseContext() as EventContext<{ invokeRequest?: { transfer?: Transferable[] } }, { raw: { event?: any, error?: string | Event } }>
+  const ctx = createBaseContext() as EventContext<
+    {
+      invokeRequest?: { transfer?: Transferable[] }
+      invokeResponse?: { transfer?: Transferable[] }
+    },
+    { raw: { event?: any, error?: string | Event } }
+  >
 
   ctx.on(and(
     matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
@@ -45,7 +51,7 @@ export function createContext(options?: {
       }
     }
     catch (error) {
-      console.error('Failed to parse WebSocket message:', error)
+      console.error('Failed to parse WebWorker message:', error)
       ctx.emit(workerErrorEvent, { error }, { raw: { event } })
     }
   }
