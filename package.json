@@ -69,7 +69,7 @@
   },
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "types": "./dist/index.mts",
   "files": [
     "README.md",
     "dist",
