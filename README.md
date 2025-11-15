@@ -16,11 +16,11 @@ Transport-aware events powering ergonomic RPC and streaming flows.
 ## Installation
 
 ```sh
-npm install @unbird/eventa
-pnpm i @unbird/eventa
-bun i @unbird/eventa
-ni @unbird/eventa
-yarn add @unbird/eventa
+npm install @moeru/eventa
+pnpm i @moeru/eventa
+bun i @moeru/eventa
+ni @moeru/eventa
+yarn add @moeru/eventa
 ```
 
 ## Getting Started
@@ -36,7 +36,7 @@ It's very simple:
 If you need only events without RPC mechanism, then use with `context.emit(...)` and `context.on(...)`
 
 ```ts
-import { createContext, defineEventa } from '@unbird/eventa'
+import { createContext, defineEventa } from '@moeru/eventa'
 
 const move = defineEventa<{ x: number, y: number }>()
 const ctx = createContext()
@@ -59,7 +59,7 @@ Events can be seen as packets transferring in networks, so we can use pure event
 The most simple way to show how it works:
 
 ```ts
-import { createContext, defineInvoke, defineInvokeEventa, defineInvokeHandler } from '@unbird/eventa'
+import { createContext, defineInvoke, defineInvokeEventa, defineInvokeHandler } from '@moeru/eventa'
 
 const ctx = createContext()
 const someMethodDefine = defineInvokeEventa<{ output: string }, { input: number }>('random name')
@@ -78,14 +78,14 @@ Eventa comes with various adapters for common use scenarios across browsers and 
 
   1. Create a shared events module:
       ```ts
-      import { defineInvokeEventa } from '@unbird/eventa'
+      import { defineInvokeEventa } from '@moeru/eventa'
 
       export const readdir = defineInvokeEventa<{ directories: string[] }, { cwd: string, target: string }>('rpc:node:fs/promise:readdir')
       ```
 
   2. In the main process, bridge the adapter to `ipcMain` and your `BrowserWindow` instance:
      ```ts
-     import { createContext as createMainContext } from '@unbird/eventa/adapters/electron/main'
+     import { createContext as createMainContext } from '@moeru/eventa/adapters/electron/main'
      import { app, BrowserWindow, ipcMain } from 'electron'
 
      import { readdir } from './events/readdir'
@@ -104,7 +104,7 @@ Eventa comes with various adapters for common use scenarios across browsers and 
      ```
   3. In the renderer (not restricted to preload scripts, but recommended), bridge to `ipcRenderer` and expose a safe API:
      ```ts
-     import { createContext as createRendererContext } from '@unbird/eventa/adapters/electron/renderer'
+     import { createContext as createRendererContext } from '@moeru/eventa/adapters/electron/renderer'
      import { contextBridge, ipcRenderer } from 'electron'
 
      import { defineInvoke, readdir } from './events/readdir'
@@ -129,7 +129,7 @@ Eventa comes with various adapters for common use scenarios across browsers and 
       ```ts
       import Worker from 'web-worker'
 
-      import { createContext, defineInvoke, defineInvokeEventa } from '@unbird/eventa/adapters/webworkers'
+      import { createContext, defineInvoke, defineInvokeEventa } from '@moeru/eventa/adapters/webworkers'
 
       const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' })
       const { context: mainCtx } = createContext(worker)
@@ -139,8 +139,8 @@ Eventa comes with various adapters for common use scenarios across browsers and 
       ```
   2. Inside the worker entry, create the worker context and register handlers:
      ```ts
-     import { defineInvokeHandler } from '@unbird/eventa'
-     import { createContext } from '@unbird/eventa/adapters/webworkers/worker'
+     import { defineInvokeHandler } from '@moeru/eventa'
+     import { createContext } from '@moeru/eventa/adapters/webworkers/worker'
 
      import { syncEvents } from '../sync'
 
@@ -156,8 +156,8 @@ Eventa comes with various adapters for common use scenarios across browsers and 
 
   1. Open a `WebSocket` and wrap it with the native adapter:
       ```ts
-      import { defineInvoke, defineInvokeEventa } from '@unbird/eventa'
-      import { createContext as createWsContext } from '@unbird/eventa/adapters/websocket/native'
+      import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
+      import { createContext as createWsContext } from '@moeru/eventa/adapters/websocket/native'
 
       const socket = new WebSocket('wss://example.com/ws')
       const { context: wsCtx } = createWsContext(socket)
@@ -167,7 +167,7 @@ Eventa comes with various adapters for common use scenarios across browsers and 
       ```
   2. Listen for connection lifecycle events to update UI state or retry logic:
      ```ts
-     import { wsConnectedEvent, wsDisconnectedEvent } from '@unbird/eventa/adapters/websocket/native'
+     import { wsConnectedEvent, wsDisconnectedEvent } from '@moeru/eventa/adapters/websocket/native'
 
      wsCtx.on(wsConnectedEvent, () => console.log('connected'))
      wsCtx.on(wsDisconnectedEvent, () => console.log('disconnected'))
@@ -180,9 +180,9 @@ Eventa comes with various adapters for common use scenarios across browsers and 
   <summary>WebSocket (Server with H3)</summary>
 
   ```ts
-  import { defineInvoke, defineInvokeHandler } from '@unbird/eventa'
+  import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
   // we support h3 by default, you can implement whatever you want, it's simple
-  import { createContext } from '@unbird/eventa/adapters/websocket/h3'
+  import { createContext } from '@moeru/eventa/adapters/websocket/h3'
 
   const chatEvents = defineInvokeEventa<{ message: string }, { text: string }>('chat:send')
 
@@ -205,7 +205,7 @@ Eventa comes with various adapters for common use scenarios across browsers and 
 `defineInvokeHandler` is complemented by `defineStreamInvokeHandler` for long-running operations that need to report progress or intermediate results.
 
 ```ts
-import { createContext, defineInvokeEventa, defineStreamInvoke, defineStreamInvokeHandler, toStreamHandler } from '@unbird/eventa'
+import { createContext, defineInvokeEventa, defineStreamInvoke, defineStreamInvokeHandler, toStreamHandler } from '@moeru/eventa'
 
 const ctx = createContext()
 const syncEvents = defineInvokeEventa<
@@ -274,13 +274,13 @@ pnpm test
 
 MIT
 
-[npm-version-src]: https://img.shields.io/npm/v/@unbird/eventa?style=flat&colorA=080f12&colorB=1fa669
-[npm-version-href]: https://npmjs.com/package/@unbird/eventa
-[npm-downloads-src]: https://img.shields.io/npm/dm/@unbird/eventa?style=flat&colorA=080f12&colorB=1fa669
-[npm-downloads-href]: https://npmjs.com/package/@unbird/eventa
-[bundle-src]: https://img.shields.io/bundlephobia/minzip/@unbird/eventa?style=flat&colorA=080f12&colorB=1fa669&label=minzip
-[bundle-href]: https://bundlephobia.com/result?p=@unbird/eventa
+[npm-version-src]: https://img.shields.io/npm/v/@moeru/eventa?style=flat&colorA=080f12&colorB=1fa669
+[npm-version-href]: https://npmjs.com/package/@moeru/eventa
+[npm-downloads-src]: https://img.shields.io/npm/dm/@moeru/eventa?style=flat&colorA=080f12&colorB=1fa669
+[npm-downloads-href]: https://npmjs.com/package/@moeru/eventa
+[bundle-src]: https://img.shields.io/bundlephobia/minzip/@moeru/eventa?style=flat&colorA=080f12&colorB=1fa669&label=minzip
+[bundle-href]: https://bundlephobia.com/result?p=@moeru/eventa
 [license-src]: https://img.shields.io/github/license/moeru-ai/eventa.svg?style=flat&colorA=080f12&colorB=1fa669
 [license-href]: https://github.com/moeru-ai/eventa/blob/main/LICENSE
 [jsdocs-src]: https://img.shields.io/badge/jsdocs-reference-080f12?style=flat&colorA=080f12&colorB=1fa669
-[jsdocs-href]: https://www.jsdocs.io/package/@unbird/eventa
+[jsdocs-href]: https://www.jsdocs.io/package/@moeru/eventa
