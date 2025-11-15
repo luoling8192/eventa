@@ -15,7 +15,7 @@ import { defineInvokeEventa } from '../../invoke-shared'
 import { createUntilTriggeredOnce } from '../../utils'
 import { createContext } from './renderer'
 
-describe('event target', async () => {
+describe('electron/renderer', async () => {
   it('context should be able to on and emit events', async () => {
     const ipcRenderer = {
       on: vi.fn(),

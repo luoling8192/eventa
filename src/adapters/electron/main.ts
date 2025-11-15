@@ -18,7 +18,8 @@ function withRemoval(ipcMain: IpcMain, type: string, listener: Parameters<IpcMai
   }
 }
 
-export function createContext(ipcMain: IpcMain, window: BrowserWindow, options?: {
+export function createContext(ipcMain: IpcMain, window?: BrowserWindow, options?: {
+  onlySameWindow?: boolean
   messageEventName?: string | false
   errorEventName?: string | false
   extraListeners?: Record<string, (_, event: Event) => void | Promise<void>>
@@ -30,25 +31,43 @@ export function createContext(ipcMain: IpcMain, window: BrowserWindow, options?:
     messageEventName = 'eventa-message',
     errorEventName = 'eventa-error',
     extraListeners = {},
+    onlySameWindow = false,
   } = options || {}
 
   const cleanupRemoval: Array<{ remove: () => void }> = []
 
   ctx.on(and(
-    matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
     matchBy('*'),
-  ), (event) => {
+    matchBy((e: DirectionalEventa<any>) => e._flowDirection === EventaFlowDirection.Outbound || !e._flowDirection),
+  ), (event, options) => {
     const eventBody = generatePayload(event.id, { ...defineOutboundEventa(event.type), ...event })
     if (messageEventName !== false) {
       try {
-        if (window.isDestroyed()) {
-          return
-        }
+        if (window != null) {
+          if (window.isDestroyed()) {
+            return
+          }
 
-        window?.webContents?.send(messageEventName, eventBody)
+          if (onlySameWindow) {
+            if (window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
+              window?.webContents?.send(messageEventName, eventBody)
+            }
+          }
+          else {
+            window?.webContents?.send(messageEventName, eventBody)
+          }
+        }
+        else {
+          if (options?.raw.ipcMainEvent.sender.isDestroyed()) {
+            return
+          }
+
+          options?.raw.ipcMainEvent.sender.send(messageEventName, eventBody)
+        }
       }
       catch (error) {
-        // Electron may throw if the window is closed before sending
+        // NOTICE: Electron may throw if the window is closed before sending
+        // ignore the error if it's about destroyed object
         if (!(error instanceof Error) || error?.message !== 'Object has been destroyed') {
           throw error
         }
