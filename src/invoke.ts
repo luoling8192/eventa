@@ -82,7 +82,7 @@ export type Handler<Res, Req = any, EC extends EventContext<any, any> = EventCon
      * TODO: Support aborting invoke handlers
      */
     abortController?: AbortController
-  } & RawEventOptions
+  } & RawEventOptions,
 ) => ExtendableInvokeResponse<Res, EC>
 
 type InternalInvokeHandler<

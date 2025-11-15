@@ -75,7 +75,7 @@ type StreamHandler<Res, Req = any, RawEventOptions = unknown> = (
      * TODO: Support aborting invoke handlers
      */
     abortController?: AbortController
-  } & RawEventOptions
+  } & RawEventOptions,
 ) => AsyncGenerator<Res, void, unknown>
 
 export function defineStreamInvokeHandler<
